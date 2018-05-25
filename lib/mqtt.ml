@@ -110,15 +110,16 @@ type t = {
     mutable buf: bytes;
 }
 
-let create () = {pos=0; buf=""}
+let create () = {pos=0; buf= Bytes.of_string ""}
 
 let add_string rb str =
+    let str = Bytes.of_string str in
     let curlen = (Bytes.length rb.buf) - rb.pos in
     let strlen = Bytes.length str in
     let newlen = strlen + curlen in
     let newbuf = Bytes.create newlen in
-    Bytes.blit_string rb.buf rb.pos newbuf 0 curlen;
-    Bytes.blit_string str 0 newbuf curlen strlen;
+    Bytes.blit rb.buf rb.pos newbuf 0 curlen;
+    Bytes.blit str 0 newbuf curlen strlen;
     rb.pos <- 0;
     rb.buf <- newbuf
 
@@ -135,7 +136,7 @@ let read rb count =
         raise (Invalid_argument "buffer underflow");
     let ret = Bytes.sub rb.buf rb.pos count in
     rb.pos <- rb.pos + count;
-    ret
+    Bytes.to_string ret
 
 let read_uint8 rb =
     let str = rb.buf in
@@ -168,24 +169,24 @@ end = struct
 let test_create _ =
     let rb = create () in
     assert_equal 0 rb.pos;
-    assert_equal "" rb.buf
+    assert_equal (Bytes.empty) rb.buf
 
 let test_add _ =
     let rb = create () in
     add_string rb "asdf";
-    assert_equal "asdf" rb.buf;
+    assert_equal (Bytes.of_string "asdf") rb.buf;
     add_string rb "qwerty";
-    assert_equal "asdfqwerty" rb.buf;
+    assert_equal (Bytes.of_string "asdfqwerty") rb.buf;
     (* test appends via manually resetting pos *)
     rb.pos <- 4;
     add_string rb "poiuy";
-    assert_equal "qwertypoiuy" rb.buf;
+    assert_equal (Bytes.of_string "qwertypoiuy") rb.buf;
     assert_equal 0 rb.pos
 
 let test_make _ =
     let rb = make "asdf" in
     assert_equal 0 rb.pos;
-    assert_equal "asdf" rb.buf
+    assert_equal (Bytes.of_string "asdf") rb.buf
 
 let test_len _ =
     let rb = create () in
@@ -357,7 +358,7 @@ let trunc str =
 let addlen s =
     let len = String.length s in
     if len > 0xFFFF then raise (Invalid_argument "string too long");
-    (int16be len) ^ s
+    Bytes.to_string (int16be len) ^ s
 
 let opt_with s n = function
     | Some a -> s a
@@ -443,8 +444,8 @@ let fixed_header typ (parms:pkt_opt) body_len =
     let len = Bytes.create 4 in
     BE.set_int8 hdr 0 (msgid + dup + qos + retain);
     BE.set_int32 len 0 (encode_length body_len);
-    let len = trunc len in
-    hdr ^ len
+    let len = trunc (Bytes.to_string len) in
+    Bytes.to_string hdr ^ len
 
 let connect_payload ?userpass ?will ?(flags = []) ?(timer = 10) id =
     let name = addlen "MQIsdp" in
@@ -470,8 +471,8 @@ let connect_payload ?userpass ?will ?(flags = []) ?(timer = 10) id =
     let tbuf = int16be timer in
     let fbuf = Bytes.create 1 in
     BE.set_int8 fbuf 0 flags;
-    let accum acc a = acc + (Bytes.length a) in
-    let fields = [name; version; fbuf; tbuf; pay] in
+    let accum acc a = acc + (String.length a) in
+    let fields = [name; version; Bytes.to_string fbuf; Bytes.to_string tbuf; pay] in
     let lens = List.fold_left accum 0 fields in
     let buf = Buffer.create lens in
     List.iter (Buffer.add_string buf) fields;
@@ -492,7 +493,7 @@ let connect_data d =
 
 let connack ?(opt = (false, Atmost_once, false)) flag =
     let hdr = fixed_header Connack_pkt opt 2 in
-    let varhdr = bits_of_connack flag |> int16be in
+    let varhdr = Bytes.to_string (bits_of_connack flag |> int16be) in
     hdr ^ varhdr
 
 let publish ?(opt = (false, Atmost_once, false)) ?(id = -1) topic payload =
@@ -500,7 +501,7 @@ let publish ?(opt = (false, Atmost_once, false)) ?(id = -1) topic payload =
     let msgid =
         if qos = Atleast_once || qos = Exactly_once then
             let mid = if id = -1 then gen_id ()
-            else id in int16be mid
+            else id in int16be mid |> Bytes.to_string
         else "" in
     let topic = addlen topic in
     let sl = String.length in
@@ -515,7 +516,7 @@ let publish ?(opt = (false, Atmost_once, false)) ?(id = -1) topic payload =
 
 let pubpkt ?(opt = (false, Atmost_once, false)) typ id =
     let hdr = fixed_header typ opt 2 in
-    let msgid = int16be id in
+    let msgid = int16be id |> Bytes.to_string in
     let buf = Buffer.create 4 in
     Buffer.add_string buf hdr;
     Buffer.add_string buf msgid;
@@ -536,8 +537,8 @@ let subscribe ?(opt = (false, Atleast_once, false)) ?(id = gen_id ()) topics =
     let buf = Buffer.create (tl + 5) in (* ~5 for fixed header *)
     let addtopic (t, q) =
         Buffer.add_string buf (addlen t);
-        Buffer.add_string buf (int8be (bits_of_qos q)) in
-    let msgid = int16be id in
+        Buffer.add_string buf (Bytes.to_string @@ int8be (bits_of_qos q)) in
+    let msgid = int16be id |> Bytes.to_string in
     let hdr = fixed_header Subscribe_pkt opt tl in
     Buffer.add_string buf hdr;
     Buffer.add_string buf msgid;
@@ -547,9 +548,9 @@ let subscribe ?(opt = (false, Atleast_once, false)) ?(id = gen_id ()) topics =
 let suback ?(opt = (false, Atmost_once, false)) id qoses =
     let paylen = (List.length qoses) + 2 in
     let buf = Buffer.create (paylen + 5) in
-    let msgid = int16be id in
-    let q2i q = bits_of_qos q |> int8be in
-    let blit q = q2i q |> Buffer.add_string buf in
+    let msgid = int16be id |> Bytes.to_string in
+    let q2i q = bits_of_qos q |> int8be |> Bytes.to_string in
+    let blit q = Buffer.add_string buf (q2i q) in
     let hdr = fixed_header Suback_pkt opt paylen in
     Buffer.add_string buf hdr;
     Buffer.add_string buf msgid;
@@ -561,7 +562,7 @@ let unsubscribe ?(opt = (false, Atleast_once, false)) ?(id = gen_id ()) topics =
     let tl = List.fold_left accum 2 topics in (* +2 for msgid *)
     let buf = Buffer.create (tl + 5) in (* ~5 for fixed header *)
     let addtopic t = addlen t |> Buffer.add_string buf in
-    let msgid = int16be id in
+    let msgid = int16be id |> Bytes.to_string in
     let hdr = fixed_header Unsubscribe_pkt opt tl in
     Buffer.add_string buf hdr;
     Buffer.add_string buf msgid;
@@ -569,7 +570,7 @@ let unsubscribe ?(opt = (false, Atleast_once, false)) ?(id = gen_id ()) topics =
     Buffer.contents buf
 
 let unsuback id =
-    let msgid = int16be id in
+    let msgid = int16be id |> Bytes.to_string in
     let opt = (false, Atmost_once, false) in
     let hdr = fixed_header Unsuback_pkt opt 2 in
     hdr ^ msgid
@@ -680,7 +681,7 @@ let decode_packet opts = function
 let decode_fixed_header byte : messages * pkt_opt =
     let typ = (byte land 0xF0) lsr 4 in
     let dup = (byte land 0x08) lsr 3 in
-    let qos = (byte land 0x04) lsr 2 in
+    let qos = (byte land 0x06) lsr 1 in
     let retain = byte land 0x01 in
     let typ = message_of_bits typ in
     let dup = bool_of_bit dup in
@@ -697,7 +698,7 @@ let read_packet ctx =
     let rd = try Lwt_io.read_into_exactly inch data 0 count
     with End_of_file -> Lwt.fail (Failure "could not read bytes") in
     rd >>= fun () ->
-    let pkt = ReadBuffer.make data |> decode_packet opts msgid in
+    let pkt = ReadBuffer.make (data |> Bytes.to_string) |> decode_packet opts msgid in
     Lwt.return (opts, pkt)
 
 module MqttTests : sig
@@ -721,7 +722,8 @@ let test_decode_in =
         let printer = string_of_int in
         let buf = Bytes.create 4 in
         BE.set_int32 buf 0 (encode_length inp);
-        let buf = Lwt_bytes.of_bytes (trunc buf) in
+        let buf = Bytes.to_string buf in
+        let buf = Lwt_bytes.of_string (trunc buf) in
         let inch = Lwt_io.of_bytes Lwt_io.input buf in
         decode_length inch >>= fun len ->
         assert_equal ~printer inp len;
@@ -746,7 +748,7 @@ let test_connect _ =
     assert_raises (Invalid_argument "timer too large") pkt;
     let pkt = connect_payload ~userpass:(Username "bob") "2" in
     assert_equal "\000\006MQIsdp\003\128\000\n\000\0012\000\003bob" pkt;
-    let lstr = Bytes.create 0x10000 in (* long string *)
+    let lstr = Bytes.create 0x10000 |> Bytes.to_string in (* long string *)
     let pkt () = connect_payload ~userpass:(Username lstr) "22" in
     assert_raises (Invalid_argument "string too long") pkt;
     let pkt = connect_payload ~userpass:(UserPass ("", "alice")) "3" in
@@ -774,7 +776,7 @@ let test_fixed_dec _ =
     let (dup, qos, retain) = opt in
     assert_equal ~printer Disconnect_pkt msg;
     assert_equal true dup;
-    assert_equal Atleast_once qos;
+    assert_equal Exactly_once qos;
     assert_equal true retain;
     ()
 
@@ -810,12 +812,12 @@ let test_cxn_dec _ =
 
 let test_connack _ =
     let s = [ Cxnack_accepted; Cxnack_protocol; Cxnack_id; Cxnack_unavail; Cxnack_userpass; Cxnack_auth ] in
-    let i2rb i = " \002" ^ (int16be i) in
+    let i2rb i = " \002" ^ (int16be i |> Bytes.to_string) in
     List.iteri (fun i a -> connack a |> assert_equal (i2rb i)) s
 
 let test_cxnack_dec _ =
     let s = [ Cxnack_accepted; Cxnack_protocol; Cxnack_id; Cxnack_unavail; Cxnack_userpass; Cxnack_auth ] in
-    let i2rb i = int16be i |> ReadBuffer.make |> decode_connack in
+    let i2rb i = int16be i |> Bytes.to_string |> ReadBuffer.make |> decode_connack in
     List.iteri (fun i a -> i2rb i |> assert_equal (Connack a)) s;
     assert_raises (Invalid_argument "connack flag unrecognized") (fun () -> i2rb 7)
 
@@ -1027,7 +1029,7 @@ module MqttClient = struct
         { clientid; userpass; will; flags; timer}
 
     let read_packets client () =
-        let cxn = client.cxn in
+        let ((_in_chan, out_chan) as cxn) = client.cxn in
         let ack_inflight id pkt_data =
             try let (cond, data) = Hashtbl.find client.inflight id in
             if pkt_data = data then begin
@@ -1040,14 +1042,17 @@ module MqttClient = struct
         let push_id id pkt_data topic pay =
             ack_inflight id pkt_data >>= fun () -> push topic pay in
         let rec loop g =
-            read_packet cxn >>= fun (_, pkt) ->
+            read_packet cxn >>= fun ((_dup, qos, _retain), pkt) ->
             (match pkt with
             | Publish (None, topic, payload) -> push topic payload
-            | Publish (Some id, topic, payload) -> push_id id pkt topic payload
+            | Publish (Some id, topic, payload) when qos = Atleast_once ->
+              push topic payload >>= fun () ->
+              let puback_pkt = puback id in
+              Lwt_io.write out_chan puback_pkt
             | Suback (id, _) | Unsuback id | Puback id | Pubrec id |
               Pubrel id | Pubcomp id -> ack_inflight id pkt
             | Pingresp -> Lwt.return_unit
-            | _ -> Lwt.fail (Failure "Unknown packet from server")) >>= fun _ ->
+            | _ -> Lwt.fail (Failure "Unknown packet from server")) >>= fun () ->
             loop g in
         loop ()
 

@@ -12,7 +12,7 @@ depends: [
   "ocamlfind"
   "ocplib-endian" {>= "0.6"}
   "ounit"
-  "lwt" {>= "2.7.0"}
+  "lwt"
   "ocamlbuild" {build}
 ]
 build: [

@@ -1,0 +1,11 @@
+(jbuild_version 1)
+
+(library
+ ((name Mqtt)
+  (public_name mqtt)
+  (wrapped false)
+  (libraries (lwt
+              lwt.unix
+              ounit
+              ocplib-endian))))
+

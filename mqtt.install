@@ -1,0 +1,20 @@
+lib: [
+  "_build/install/default/lib/mqtt/META" {"META"}
+  "_build/install/default/lib/mqtt/opam" {"opam"}
+  "_build/install/default/lib/mqtt/mqtt.cmi" {"mqtt.cmi"}
+  "_build/install/default/lib/mqtt/mqtt.cmx" {"mqtt.cmx"}
+  "_build/install/default/lib/mqtt/mqtt.cmt" {"mqtt.cmt"}
+  "_build/install/default/lib/mqtt/mqtt.ml" {"mqtt.ml"}
+  "_build/install/default/lib/mqtt/subscriptions.cmi" {"subscriptions.cmi"}
+  "_build/install/default/lib/mqtt/subscriptions.cmx" {"subscriptions.cmx"}
+  "_build/install/default/lib/mqtt/subscriptions.cmt" {"subscriptions.cmt"}
+  "_build/install/default/lib/mqtt/subscriptions.ml" {"subscriptions.ml"}
+  "_build/install/default/lib/mqtt/Mqtt.cma" {"Mqtt.cma"}
+  "_build/install/default/lib/mqtt/Mqtt.cmxa" {"Mqtt.cmxa"}
+  "_build/install/default/lib/mqtt/Mqtt.a" {"Mqtt.a"}
+  "_build/install/default/lib/mqtt/Mqtt.cmxs" {"Mqtt.cmxs"}
+  "_build/install/default/lib/mqtt/mqtt.dune" {"mqtt.dune"}
+]
+doc: [
+  "_build/install/default/doc/mqtt/README"
+]

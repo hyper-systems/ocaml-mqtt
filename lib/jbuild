@@ -6,6 +6,6 @@
   (wrapped false)
   (libraries (lwt
               lwt.unix
-              ounit
+              oUnit
               ocplib-endian))))
 

@@ -39,7 +39,7 @@ let split str =
 
 let empty = E
 
-let tbl_keys tbl = Hashtbl.fold (fun k _ acc -> k :: acc) tbl []
+let _tbl_keys tbl = Hashtbl.fold (fun k _ acc -> k :: acc) tbl []
 let tbl_vals tbl = Hashtbl.fold (fun _ v acc -> v :: acc) tbl []
 
 let rec length = function
@@ -49,7 +49,7 @@ let rec length = function
         let children = tbl_vals t in
         1 + List.fold_left (fun acc x -> acc + (length x)) 0 children
 
-let get_vals = function
+let _get_vals = function
     | E | NV _ -> []
     | V (_, _, v) | Pound v  -> v
 
@@ -170,7 +170,7 @@ let remove_node key value tree =
         | [] -> tree in
     inner tree parts
 
-let rec tree_of_string tree level =
+let rec _tree_of_string tree level =
     let vals = match tree with
     | E | NV _ -> []
     | V (_, _, v) | Pound v -> v in
@@ -185,7 +185,7 @@ let rec tree_of_string tree level =
     let vals = String.concat "," vals in
     let vals = if "" <> vals then ": " ^ vals else "" in
     let _ = Printf.printf "%*d %s %s\n" level level key vals in
-    let func x = tree_of_string x (level + 4) in
+    let func x = _tree_of_string x (level + 4) in
     List.iter func branches
 
 let split_test _ =

@@ -1,0 +1,5 @@
+
+(executable
+  (name Subscriber)
+  (modules Subscriber)
+  (libraries mqtt lwt))

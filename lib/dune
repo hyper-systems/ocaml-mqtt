@@ -1,0 +1,10 @@
+
+(library
+ (name Mqtt)
+ (public_name mqtt)
+ (wrapped false)
+ (libraries lwt
+            lwt.unix
+            oUnit
+            ocplib-endian))
+

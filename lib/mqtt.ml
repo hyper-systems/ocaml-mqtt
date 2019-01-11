@@ -1,100 +1,109 @@
 open OUnit
 open Lwt
 
-module Mqtt : sig
+let (<&>) = Lwt.(<&>)
 
-    type t
-    type 'a monad = 'a Lwt.t
-    type qos = Atmost_once | Atleast_once | Exactly_once
-    type cxn_flags = Will_retain | Will_qos of qos | Clean_session
-    type cxn_userpass = Username of string | UserPass of (string * string)
-    type cxn_data = {
-        clientid: string;
-        userpass: cxn_userpass option;
-        will: (string * string) option;
-        flags: cxn_flags list;
-        timer: int;
-    }
-    type cxnack_flags = Cxnack_accepted | Cxnack_protocol | Cxnack_id |
-                    Cxnack_unavail | Cxnack_userpass | Cxnack_auth
-    type msg_data = Connect of cxn_data | Connack of cxnack_flags |
-                    Subscribe of (int * (string * qos) list) |
-                    Suback of (int * qos list) |
-                    Unsubscribe of (int * string list) |
-                    Unsuback of int |
-                    Publish of (int option * string * string) |
-                    Puback of int | Pubrec of int | Pubrel of int |
-                    Pubcomp of int | Pingreq | Pingresp | Disconnect |
-                    Asdf
-    type pkt_opt = bool * qos * bool
 
-    val connect : ?userpass:cxn_userpass -> ?will:(string * string) ->
-                ?flags:cxn_flags list -> ?timer:int -> ?opt:pkt_opt ->
-                string -> string
+let fmt = Format.asprintf
 
-    val connack : ?opt:pkt_opt -> cxnack_flags -> string
+module Mqtt
+(* : sig *)
 
-    val publish : ?opt:pkt_opt -> ?id:int -> string -> string -> string
+(*     type t *)
+(*     type 'a monad = 'a Lwt.t *)
+(*     type qos = Atmost_once | Atleast_once | Exactly_once *)
+(*     type cxn_flags = Will_retain | Will_qos of qos | Clean_session *)
+(*     type cxn_userpass = Username of string | UserPass of (string * string) *)
+(*     type cxn_data = { *)
+(*         clientid: string; *)
+(*         userpass: cxn_userpass option; *)
+(*         will: (string * string) option; *)
+(*         flags: cxn_flags list; *)
+(*         timer: int; *)
+(*     } *)
+(*     type cxnack_flags = Cxnack_accepted | Cxnack_protocol | Cxnack_id | *)
+(*                     Cxnack_unavail | Cxnack_userpass | Cxnack_auth *)
+(*     type packet = Connect of cxn_data | Connack of cxnack_flags | *)
+(*                     Subscribe of (int * (string * qos) list) | *)
+(*                     Suback of (int * qos list) | *)
+(*                     Unsubscribe of (int * string list) | *)
+(*                     Unsuback of int | *)
+(*                     Publish of (int option * string * string) | *)
+(*                     Puback of int | Pubrec of int | Pubrel of int | *)
+(*                     Pubcomp of int | Pingreq | Pingresp | Disconnect | *)
+(*                     Asdf *)
+(*     type pkt_opt = bool * qos * bool *)
 
-    val puback : int -> string
+(*     val connect : ?userpass:cxn_userpass -> ?will:(string * string) -> *)
+(*                 ?flags:cxn_flags list -> ?timer:int -> ?opt:pkt_opt -> *)
+(*                 string -> string *)
 
-    val pubrec : int -> string
+(*     val connack : ?opt:pkt_opt -> cxnack_flags -> string *)
 
-    val pubrel : ?opt:pkt_opt -> int -> string
+(*     val publish : ?opt:pkt_opt -> ?id:int -> string -> string -> string *)
 
-    val pubcomp : int -> string
+(*     val puback : int -> string *)
 
-    val subscribe : ?opt:pkt_opt -> ?id:int -> (string * qos) list -> string
+(*     val pubrec : int -> string *)
 
-    val suback : ?opt:pkt_opt -> int -> qos list -> string
+(*     val pubrel : ?opt:pkt_opt -> int -> string *)
 
-    val unsubscribe: ?opt:pkt_opt -> ?id:int -> string list -> string
+(*     val pubcomp : int -> string *)
 
-    val unsuback : int -> string
+(*     val subscribe : ?opt:pkt_opt -> ?id:int -> (string * qos) list -> string *)
 
-    val pingreq : unit -> string
+(*     val suback : ?opt:pkt_opt -> int -> qos list -> string *)
 
-    val pingresp : unit -> string
+(*     val unsubscribe: ?opt:pkt_opt -> ?id:int -> string list -> string *)
 
-    val disconnect : unit -> string
+(*     val unsuback : int -> string *)
 
-    val read_packet : t -> (pkt_opt * msg_data) monad
+(*     val pingreq : unit -> string *)
 
-    val tests : OUnit.test list
+(*     val pingresp : unit -> string *)
 
-    module MqttClient : sig
-        type client
+(*     val disconnect : unit -> string *)
 
-        val connect_options : ?clientid:string -> ?userpass:cxn_userpass -> ?will:(string * string) -> ?flags:cxn_flags list -> ?timer:int -> unit -> cxn_data
+(*     val read_packet : t -> (pkt_opt * packet) monad *)
 
-        val connect : ?opt:cxn_data -> ?error_fn:(client -> exn -> unit monad) -> ?port:int -> string -> client monad
-        val publish : ?opt:pkt_opt -> ?id:int -> client -> string -> string -> unit monad
+(*     val tests : OUnit.test list *)
 
-        val subscribe : ?opt:pkt_opt -> ?id:int -> client -> (string * qos) list -> unit monad
+(*     module MqttClient : sig *)
+(*         type client *)
 
-        val disconnect : client -> unit monad
+(*         val connection : client -> Lwt_io.input_channel * Lwt_io.output_channel *)
 
-        val sub_stream : client -> (string * string) Lwt_stream.t
+(*         val connect_options : ?clientid:string -> ?userpass:cxn_userpass -> ?will:(string * string) -> ?flags:cxn_flags list -> ?timer:int -> unit -> cxn_data *)
 
-    end
+(*         val connect : ?opt:cxn_data -> ?error_fn:(client -> exn -> unit monad) -> ?port:int -> string -> client monad *)
+(*         val publish : ?opt:pkt_opt -> ?id:int -> client -> string -> string -> unit monad *)
 
-    module MqttServer : sig
-        type t
+(*         val subscribe : ?opt:pkt_opt -> ?id:int -> client -> (string * qos) list -> unit monad *)
 
-        val listen : ?host:string -> ?port:int -> unit -> t monad
+(*         val disconnect : client -> unit monad *)
 
-    end
+(*         val sub_stream : client -> (string * string) Lwt_stream.t *)
 
-end = struct
+(*     end *)
+
+(*     module MqttServer : sig *)
+(*         type t *)
+
+(*         val listen : ?host:string -> ?port:int -> unit -> t monad *)
+
+(*     end *)
+
+(* end *)
+= struct
 
 module BE = EndianBytes.BigEndian
 
 module ReadBuffer : sig
 
     type t
-    val create : unit -> t
+    (* val create : unit -> t *)
     val make : string -> t
-    val add_string : t -> string -> unit
+    (* val add_string : t -> string -> unit *)
     val len : t -> int
     val read: t -> int -> string
     val read_string : t -> string
@@ -318,15 +327,22 @@ type cxn_data = {
 }
 type cxnack_flags = Cxnack_accepted | Cxnack_protocol | Cxnack_id |
                     Cxnack_unavail | Cxnack_userpass | Cxnack_auth
-type msg_data = Connect of cxn_data | Connack of cxnack_flags |
-                Subscribe of (int * (string * qos) list) |
-                Suback of (int * qos list) |
-                Unsubscribe of (int * string list) |
-                Unsuback of int |
-                Publish of (int option * string * string) |
-                Puback of int | Pubrec of int | Pubrel of int |
-                Pubcomp of int | Pingreq | Pingresp | Disconnect |
-                Asdf
+type packet =
+  | Connect of cxn_data
+  | Connack of cxnack_flags
+  | Subscribe of (int * (string * qos) list)
+  | Suback of (int * qos list)
+  | Unsubscribe of (int * string list)
+  | Unsuback of int
+  | Publish of (int option * string * string)
+  | Puback of int
+  | Pubrec of int
+  | Pubrel of int
+  | Pubcomp of int
+  | Pingreq
+  | Pingresp
+  | Disconnect
+
 type pkt_opt = bool * qos * bool
 
 let msgid = ref 0
@@ -434,6 +450,18 @@ let bits_of_connack = function
     | Cxnack_userpass -> 4
     | Cxnack_auth -> 5
 
+let fixed_header'new typ ~dup ~qos ~retain body_len =
+    let msgid = (bits_of_message typ) lsl 4 in
+    let dup = (bit_of_bool dup) lsl 3 in
+    let qos = (bits_of_qos qos) lsl 1 in
+    let retain = bit_of_bool retain in
+    let hdr = Bytes.create 1 in
+    let len = Bytes.create 4 in
+    BE.set_int8 hdr 0 (msgid + dup + qos + retain);
+    BE.set_int32 len 0 (encode_length body_len);
+    let len = trunc (Bytes.to_string len) in
+    Bytes.to_string hdr ^ len
+
 let fixed_header typ (parms:pkt_opt) body_len =
     let (dup, qos, retain) = parms in
     let msgid = (bits_of_message typ) lsl 4 in
@@ -496,24 +524,6 @@ let connack ?(opt = (false, Atmost_once, false)) flag =
     let varhdr = Bytes.to_string (bits_of_connack flag |> int16be) in
     hdr ^ varhdr
 
-let publish ?(opt = (false, Atmost_once, false)) ?(id = -1) topic payload =
-    let (_, qos, _) = opt in
-    let msgid =
-        if qos = Atleast_once || qos = Exactly_once then
-            let mid = if id = -1 then gen_id ()
-            else id in int16be mid |> Bytes.to_string
-        else "" in
-    let topic = addlen topic in
-    let sl = String.length in
-    let tl = sl topic + sl payload + sl msgid in
-    let buf = Buffer.create (tl + 5) in
-    let hdr = fixed_header Publish_pkt opt tl in
-    Buffer.add_string buf hdr;
-    Buffer.add_string buf topic;
-    Buffer.add_string buf msgid;
-    Buffer.add_string buf payload;
-    Buffer.contents buf
-
 let pubpkt ?(opt = (false, Atmost_once, false)) typ id =
     let hdr = fixed_header typ opt 2 in
     let msgid = int16be id |> Bytes.to_string in
@@ -522,28 +532,11 @@ let pubpkt ?(opt = (false, Atmost_once, false)) typ id =
     Buffer.add_string buf msgid;
     Buffer.contents buf
 
-let puback = pubpkt Puback_pkt
-
 let pubrec = pubpkt Pubrec_pkt
 
 let pubrel ?opt = pubpkt ?opt Pubrel_pkt
 
 let pubcomp = pubpkt Pubcomp_pkt
-
-let subscribe ?(opt = (false, Atleast_once, false)) ?(id = gen_id ()) topics =
-    let accum acc (i, _) = acc + 3 + String.length i in
-    let tl = List.fold_left accum 0 topics in
-    let tl = tl + 2 in (* add msgid to total len *)
-    let buf = Buffer.create (tl + 5) in (* ~5 for fixed header *)
-    let addtopic (t, q) =
-        Buffer.add_string buf (addlen t);
-        Buffer.add_string buf (Bytes.to_string @@ int8be (bits_of_qos q)) in
-    let msgid = int16be id |> Bytes.to_string in
-    let hdr = fixed_header Subscribe_pkt opt tl in
-    Buffer.add_string buf hdr;
-    Buffer.add_string buf msgid;
-    List.iter addtopic topics;
-    Buffer.contents buf
 
 let suback ?(opt = (false, Atmost_once, false)) id qoses =
     let paylen = (List.length qoses) + 2 in
@@ -581,7 +574,75 @@ let pingreq () = simple_pkt Pingreq_pkt
 
 let pingresp () = simple_pkt Pingresp_pkt
 
-let disconnect () = simple_pkt Disconnect_pkt
+
+
+module Packet = struct
+
+  type t = packet
+
+  let puback id = Puback id
+
+  module Encoder = struct
+    let puback = pubpkt Puback_pkt
+
+    let disconnect () = simple_pkt Disconnect_pkt
+
+    let subscribe ?(opt = (false, Atleast_once, false)) ?(id = gen_id ()) topics =
+      let accum acc (i, _) = acc + 3 + String.length i in
+      let tl = List.fold_left accum 0 topics in
+      let tl = tl + 2 in (* add msgid to total len *)
+      let buf = Buffer.create (tl + 5) in (* ~5 for fixed header *)
+      let addtopic (t, q) =
+        Buffer.add_string buf (addlen t);
+        Buffer.add_string buf (Bytes.to_string @@ int8be (bits_of_qos q)) in
+      let msgid = int16be id |> Bytes.to_string in
+      let hdr = fixed_header Subscribe_pkt opt tl in
+      Buffer.add_string buf hdr;
+    Buffer.add_string buf msgid;
+    List.iter addtopic topics;
+    Buffer.contents buf
+
+
+  let publish ?(opt = (false, Atmost_once, false)) ?(id = -1) topic payload =
+      let (_, qos, _) = opt in
+      let msgid =
+          if qos = Atleast_once || qos = Exactly_once then
+              let mid = if id = -1 then gen_id ()
+              else id in int16be mid |> Bytes.to_string
+          else "" in
+      let topic = addlen topic in
+      let sl = String.length in
+      let tl = sl topic + sl payload + sl msgid in
+      let buf = Buffer.create (tl + 5) in
+      let hdr = fixed_header Publish_pkt opt tl in
+      Buffer.add_string buf hdr;
+      Buffer.add_string buf topic;
+      Buffer.add_string buf msgid;
+      Buffer.add_string buf payload;
+      Buffer.contents buf
+
+
+  let publish'new ~dup ~qos ~retain ~id ~topic payload =
+      let id_data =
+        if qos = Atleast_once || qos = Exactly_once then
+          Bytes.to_string (int16be id)
+        else ""
+      in
+      let topic = addlen topic in
+      let sl = String.length in
+      let tl = sl topic + sl payload + sl id_data in
+      let buf = Buffer.create (tl + 5) in
+      let hdr = fixed_header'new Publish_pkt ~dup ~qos ~retain tl in
+      Buffer.add_string buf hdr;
+      Buffer.add_string buf topic;
+      Buffer.add_string buf id_data;
+      Buffer.add_string buf payload;
+      Buffer.contents buf
+
+  end
+end
+
+
 
 let decode_connect rb =
     let lead = ReadBuffer.read rb 9 in
@@ -656,11 +717,11 @@ let decode_unsub rb =
 
 let decode_unsuback rb = Unsuback (ReadBuffer.read_uint16 rb)
 
-let decode_pingreq rb = Pingreq
+let decode_pingreq _rb = Pingreq
 
-let decode_pingresp rb = Pingresp
+let decode_pingresp _rb = Pingresp
 
-let decode_disconnect rb = Disconnect
+let decode_disconnect _rb = Disconnect
 
 let decode_packet opts = function
     | Connect_pkt -> decode_connect
@@ -691,8 +752,8 @@ let decode_fixed_header byte : messages * pkt_opt =
 
 let read_packet ctx =
     let (inch, _) = ctx in
-    Lwt_io.read_char inch >>= fun ch ->
-    let (msgid, opts) = Char.code ch |> decode_fixed_header in
+    Lwt_io.read_char inch >>= fun header_byte ->
+    let (msgid, opts) = decode_fixed_header (Char.code header_byte) in
     decode_length inch >>= fun count ->
     let data = Bytes.create count in
     let rd = try Lwt_io.read_into_exactly inch data 0 count
@@ -724,7 +785,7 @@ let test_decode_in =
         BE.set_int32 buf 0 (encode_length inp);
         let buf = Bytes.to_string buf in
         let buf = Lwt_bytes.of_string (trunc buf) in
-        let inch = Lwt_io.of_bytes Lwt_io.input buf in
+        let inch = Lwt_io.of_bytes ~mode:Lwt_io.input buf in
         decode_length inch >>= fun len ->
         assert_equal ~printer inp len;
         Lwt.return_unit in
@@ -822,15 +883,15 @@ let test_cxnack_dec _ =
     assert_raises (Invalid_argument "connack flag unrecognized") (fun () -> i2rb 7)
 
 let test_pub _ =
-    let res = publish "a" "b" in
+    let res = Packet.Encoder.publish "a" "b" in
     let m = "0\004\000\001ab" in
     assert_equal m res;
-    let res = publish ~id:7 "a" "b" in
+    let res = Packet.Encoder.publish ~id:7 "a" "b" in
     assert_equal m res;
-    let res = publish ~opt:(false, Atleast_once, false) ~id:7 "a" "b" in
+    let res = Packet.Encoder.publish ~opt:(false, Atleast_once, false) ~id:7 "a" "b" in
     let m = "2\006\000\001a\000\007b" in
     assert_equal m res;
-    let res = publish ~opt:(false, Exactly_once, false) ~id:7 "a" "b" in
+    let res = Packet.Encoder.publish ~opt:(false, Exactly_once, false) ~id:7 "a" "b" in
     let m = "4\006\000\001a\000\007b" in
     assert_equal m res
 
@@ -854,7 +915,7 @@ let test_pub_dec _ =
 
 let test_puback _ =
     let m = "@\002\000\007" in
-    let res = puback 7 in
+    let res = Packet.Encoder.puback 7 in
     assert_equal m res
 
 let test_puback_dec _ =
@@ -902,7 +963,7 @@ let test_pubcomp_dec _ =
 let test_subscribe _ =
     let q = ["asdf"; "qwerty"; "poiuy"; "mnbvc"; "zxcvb"] in
     let foo = List.map (fun z -> (z, Atmost_once)) q in
-    let res = subscribe ~id:7 foo in
+    let res = Packet.Encoder.subscribe ~id:7 foo in
     assert_equal "\130*\000\007\000\004asdf\000\000\006qwerty\000\000\005poiuy\000\000\005mnbvc\000\000\005zxcvb\000" res
 
 let test_sub_dec _ =
@@ -958,7 +1019,7 @@ let test_pingresp _ = assert_equal "\208\000" (pingresp ())
 let test_pingresp_dec _ =
     assert_equal Pingresp (ReadBuffer.make "" |> decode_pingresp)
 
-let test_disconnect _ = assert_equal "\224\000" (disconnect ())
+let test_disconnect _ = assert_equal "\224\000" (Packet.Encoder.disconnect ())
 
 let test_disconnect_dec _ =
     assert_equal Disconnect (ReadBuffer.make "" |> decode_disconnect)
@@ -1016,47 +1077,85 @@ module MqttClient = struct
         cxn : t;
         stream: (string * string) Lwt_stream.t;
         push : ((string * string) option -> unit);
-        inflight : (int, (int Lwt_condition.t * msg_data)) Hashtbl.t;
+        inflight : (int, (unit Lwt_condition.t * packet)) Hashtbl.t;
         mutable reader : unit Lwt.t;
         mutable pinger : unit Lwt.t;
         error_fn : (client -> exn -> unit Lwt.t);
     }
 
-    let default_error_fn client exn =
-        Printexc.to_string exn |> Lwt_io.printlf "mqtt error: %s"
+    let default_error_fn _client exn =
+        Lwt_io.printlf "mqtt error: %s\n%s" (Printexc.to_string exn) (Printexc.get_backtrace ())
 
     let connect_options ?(clientid = "OCamlMQTT") ?userpass ?will ?(flags= [Clean_session]) ?(timer = 10) () =
         { clientid; userpass; will; flags; timer}
 
     let read_packets client () =
         let ((_in_chan, out_chan) as cxn) = client.cxn in
-        let ack_inflight id pkt_data =
-            try let (cond, data) = Hashtbl.find client.inflight id in
-            if pkt_data = data then begin
+
+        let ack_inflight id pkt =
+          try
+            let (cond, expected_ack_pkt) = Hashtbl.find client.inflight id in
+            if pkt = expected_ack_pkt then begin
                 Hashtbl.remove client.inflight id;
-                Lwt_condition.signal cond id;
+                Lwt_condition.signal cond ();
                 Lwt.return_unit
-            end else Lwt.fail (Failure "unexpected packet in ack")
-            with exn -> Lwt.fail (Failure "ack not found") in
-        let push topic pay = Some (topic, pay) |> client.push |> Lwt.return in
-        let push_id id pkt_data topic pay =
-            ack_inflight id pkt_data >>= fun () -> push topic pay in
-        let rec loop g =
-            read_packet cxn >>= fun ((_dup, qos, _retain), pkt) ->
-            (match pkt with
-            | Publish (None, topic, payload) -> push topic payload
+            end else
+              Lwt.fail (Failure ("unexpected packet in ack"))
+          with Not_found ->
+            Lwt.fail (Failure (fmt "ack for id=%d not found" id))
+        in
+
+        let push topic payload =
+          Lwt.return (client.push (Some (topic, payload)))
+        in
+
+        let _push_id id pkt_data topic payload =
+          ack_inflight id pkt_data >>= fun () ->
+          push topic payload
+        in
+
+        let rec loop () =
+          read_packet cxn >>= fun ((_dup, qos, _retain), packet) -> begin
+            match packet with
+            (* Publish with QoS 0: push *)
+            | Publish (None, topic, payload) when qos = Atmost_once ->
+              push topic payload
+
+            (* Publish with QoS 0 and packet identifier: error *)
+            | Publish (Some _id, _topic, _payload) when qos = Atmost_once ->
+              Lwt.fail (Failure "protocol violation: publish packet with qos 0 must not have id")
+
+            (* Publish with QoS 1 *)
             | Publish (Some id, topic, payload) when qos = Atleast_once ->
+              (* - Push the message to the consumer queue.
+                 - Send back the PUBACK packet. *)
               push topic payload >>= fun () ->
-              let puback_pkt = puback id in
-              Lwt_io.write out_chan puback_pkt
-            | Suback (id, _) | Unsuback id | Puback id | Pubrec id |
-              Pubrel id | Pubcomp id -> ack_inflight id pkt
+              let puback = Packet.Encoder.puback id in
+              Lwt_io.write out_chan puback >>= fun () ->
+              Lwt.return_unit
+
+            | Publish (None, _topic, _payload) when qos = Atleast_once ->
+              Lwt.fail (Failure "protocol violation: publish packet with qos > 0 must have id")
+
+            | Publish _ ->
+              Lwt.fail (Failure "not supported publish packet (probably qos 2)")
+
+            | Suback (id, _)
+            | Unsuback id
+            | Puback id
+            | Pubrec id
+            | Pubrel id
+            | Pubcomp id ->
+              ack_inflight id packet
+
             | Pingresp -> Lwt.return_unit
-            | _ -> Lwt.fail (Failure "Unknown packet from server")) >>= fun () ->
-            loop g in
+
+            | _ -> Lwt.fail (Failure "unknown packet from server")
+          end >>= loop
+        in
         loop ()
 
-    let wrap_catch client f = client.error_fn client |> Lwt.catch f
+    let wrap_catch client f = Lwt.catch f (client.error_fn client)
 
     let pinger cxn timeout () =
         let (_, oc) = cxn in
@@ -1067,56 +1166,100 @@ module MqttClient = struct
             loop g in
         loop ()
 
-    let connect ?(opt = connect_options ()) ?(error_fn = default_error_fn) ?(port = 1883) host =
-        Lwt_unix.gethostbyname host >>= fun hostent ->
-        let haddr = hostent.Lwt_unix.h_addr_list.(0) in
-        let addr = Lwt_unix.ADDR_INET(haddr, port) in
-        let s = Lwt_unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-        Lwt_unix.connect s addr >>= fun () ->
-        let ic = Lwt_io.of_fd ~mode:Lwt_io.input s in
-        let oc = Lwt_io.of_fd ~mode:Lwt_io.output s in
-        let cxn = (ic, oc) in
-        let cd = connect ?userpass:opt.userpass ?will:opt.will ~flags:opt.flags ~timer:opt.timer opt.clientid in
-        Lwt_io.write oc cd >>= fun () ->
-        let stream, push = Lwt_stream.create () in
-        let inflight = Hashtbl.create 100 in
-        read_packet cxn >>= function
-            | (_, Connack Cxnack_accepted) ->
-                let ping = Lwt.return_unit in
-                let reader = Lwt.return_unit in
-                let client = { cxn; stream; push; inflight; reader; pinger=ping; error_fn; } in
-                let pinger = wrap_catch client (pinger cxn opt.timer) in
-                let reader = wrap_catch client (read_packets client) in
-                client.pinger <- pinger;
-                client.reader <- reader;
-                Lwt.return client
-            | (_, Connack s) -> Failure (string_of_cxnack_flag s) |> Lwt.fail
-            | _ -> Failure ("Unknown packet type received after conn") |> Lwt.fail
 
-    let publish ?opt ?id client topic payload =
-        let (_, oc) = client.cxn in
-        let pd = publish ?opt ?id topic payload in
-        Lwt_io.write oc pd
+    let () = Printexc.record_backtrace true
+
+
+    let connect ?(opt = connect_options ()) ?(error_fn = default_error_fn) ?(port = 1883) host =
+      (* Estabilish a socket connection. *)
+      Lwt_unix.getaddrinfo host (string_of_int port) [] >>= fun addresses ->
+      let sockaddr = Lwt_unix.((List.hd addresses).ai_addr) in
+      Lwt_io.open_connection sockaddr >>= fun ((_ic, oc) as connection) ->
+
+      (* Send the CONNECT packet to the server. *)
+      let connect_packet = connect ?userpass:opt.userpass ?will:opt.will ~flags:opt.flags ~timer:opt.timer opt.clientid in
+      Lwt_io.write oc connect_packet >>= fun () ->
+
+      let stream, push = Lwt_stream.create () in
+      let inflight = Hashtbl.create 100 in
+      read_packet connection >>= fun packet ->
+        match packet with
+        | (_, Connack Cxnack_accepted) ->
+          let ping = Lwt.return_unit in
+          let reader = Lwt.return_unit in
+
+          let client = { cxn = connection; stream; push; inflight; reader; pinger=ping; error_fn; } in
+          (* let pinger = wrap_catch client (pinger connection opt.timer) in *)
+          (* let reader = wrap_catch client (read_packets client) in *)
+
+          let pinger = pinger connection opt.timer () in
+          let reader = read_packets client () in
+
+          Lwt.async (fun () ->
+            Lwt.catch (fun () -> pinger <&> reader)
+            (function
+              | Lwt.Canceled ->
+                (* Lwt_io.printl "[DEBUG] Mqtt_client: Stopped client thread." >>= fun () -> *)
+                Lwt.return_unit
+              | exn -> Lwt.fail exn));
+
+          client.pinger <- pinger;
+          client.reader <- reader;
+
+          Lwt.return client
+
+        | (_, Connack s) -> Lwt.fail (Failure (string_of_cxnack_flag s))
+        | _ -> Lwt.fail (Failure ("Unknown packet type received after conn"))
+
+
+    let connection c = c.cxn
+
+
+    let publish ?(dup=false) ~qos ?(retain=false) client topic payload =
+      let (_, oc) = client.cxn in
+      let id = !msgid in
+      let cond = Lwt_condition.create () in
+      let expected_ack_pkt = Packet.puback id in
+      Hashtbl.add client.inflight id (cond, expected_ack_pkt);
+      let pkt_data =
+        Packet.Encoder.publish'new ~dup ~qos ~retain ~id ~topic payload in
+      Lwt_io.write oc pkt_data >>= fun () ->
+      Lwt_condition.wait cond
+
+
 
     let subscribe ?opt ?id client topics =
         let (_, oc) = client.cxn in
-        let sd = subscribe ?opt ?id topics in
-        let qoses = List.map (fun (_, q) -> q) topics in
+        let subscribe_packet = Packet.Encoder.subscribe ?opt ?id topics in
+        let qos_list = List.map (fun (_, q) -> q) topics in
         let mid = !msgid in
         let cond = Lwt_condition.create () in
-        Hashtbl.add client.inflight mid (cond, (Suback (mid, qoses)));
+        Hashtbl.add client.inflight mid (cond, (Suback (mid, qos_list)));
         wrap_catch client (fun () ->
-        Lwt_io.write oc sd >>= fun () ->
+        Lwt_io.write oc subscribe_packet >>= fun () ->
         Lwt_condition.wait cond >>= fun _ ->
         Lwt.return_unit)
 
+
+    (* TODO: push None to client; stop reader and pinger ?? *)
     let disconnect client =
-        let (ic, oc) = client.cxn in
-        disconnect () |> Lwt_io.write oc >>= fun () ->
-        (* push None to client; stop reader and pinger ?? *)
-        let catch f = Lwt.catch (fun () -> f) (function _ -> Lwt.return_unit) in
-        Lwt_io.close ic |> catch >>= fun () ->
-        Lwt_io.close oc |> catch
+      let (ic, oc) = client.cxn in
+
+      (* Terminate the packet stream. *)
+      client.push None;
+
+      (* Cancel the reader and pinger threads. *)
+      Lwt.cancel client.reader;
+      Lwt.cancel client.pinger;
+
+      (* Send the disconnect packet to server. *)
+      Lwt_io.write oc (Packet.Encoder.disconnect ()) >>= fun () ->
+
+      (* Close the connection. *)
+      Lwt_io.flush oc >>= fun () ->
+      Lwt_io.close ic >>= fun () ->
+      Lwt_io.close oc
+
 
     let sub_stream client = client.stream
 
@@ -1140,11 +1283,11 @@ let handle_sub outch s =
 
 let handle_pub p =
     let (_, topic, payload) = p in
-    let s = publish topic payload in
+    let s = Packet.Encoder.publish topic payload in
     let write ch = Lwt_io.write ch s in
     Lwt_list.iter_p write !cxns
 
-let srv_cxn cxn =
+let srv_cxn _client_address cxn =
     let (inch, outch) = cxn in
     Lwt.catch (fun () ->
     read_packet cxn >>= (function
@@ -1176,7 +1319,7 @@ let addr host port =
 
 let listen ?(host = "localhost") ?(port = 1883) () =
     addr host port >>= fun a ->
-    Lwt_io.Versioned.establish_server_2 ~backlog:1000 a srv_cxn
+    Lwt_io.establish_server_with_client_address ~backlog:1000 a srv_cxn
 
 end
 

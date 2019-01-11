@@ -1,0 +1,10 @@
+
+(test
+  (name mqtt_test)
+  (modules Mqtt_test)
+  (libraries mqtt oUnit))
+
+(test
+  (name Test_session)
+  (modules Test_session)
+  (libraries mqtt lwt))

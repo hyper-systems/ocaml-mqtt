@@ -325,11 +325,47 @@ type cxn_data = {
     flags: cxn_flags list;
     timer: int;
 }
-type cxnack_flags = Cxnack_accepted | Cxnack_protocol | Cxnack_id |
-                    Cxnack_unavail | Cxnack_userpass | Cxnack_auth
+
+type connection_status =
+  | Accepted
+  | Unacceptable_protocol_version
+  | Identifier_rejected
+  | Server_unavailable
+  | Bad_username_or_password
+  | Not_authorized
+
+
+let connection_status_to_string = function
+  | Accepted                      -> "Accepted"
+  | Unacceptable_protocol_version -> "Unacceptable_protocol_version"
+  | Identifier_rejected           -> "Identifier_rejected"
+  | Server_unavailable            -> "Server_unavailable"
+  | Bad_username_or_password      -> "Bad_username_or_password"
+  | Not_authorized                -> "Not_authorized"
+
+
+let connection_status_to_int = function
+  | Accepted                      -> 0
+  | Unacceptable_protocol_version -> 1
+  | Identifier_rejected           -> 2
+  | Server_unavailable            -> 3
+  | Bad_username_or_password      -> 4
+  | Not_authorized                -> 5
+
+
+let connection_status_of_int = function
+  | 0 -> Accepted
+  | 1 -> Unacceptable_protocol_version
+  | 2 -> Identifier_rejected
+  | 3 -> Server_unavailable
+  | 4 -> Bad_username_or_password
+  | 5 -> Not_authorized
+  | _ -> raise (Invalid_argument "Invalid connection status code")
+
+
 type packet =
   | Connect of cxn_data
-  | Connack of cxnack_flags
+  | Connack of { session_present : bool; connection_status : connection_status }
   | Subscribe of (int * (string * qos) list)
   | Suback of (int * qos list)
   | Unsubscribe of (int * string list)
@@ -433,22 +469,6 @@ let bool_of_bit = function
     | 0 -> false
     | _ -> raise (Invalid_argument "bit not zero or one")
 
-let connack_of_bits = function
-    | 0 -> Cxnack_accepted
-    | 1 -> Cxnack_protocol
-    | 2 -> Cxnack_id
-    | 3 -> Cxnack_unavail
-    | 4 -> Cxnack_userpass
-    | 5 -> Cxnack_auth
-    | _ -> raise (Invalid_argument "connack flag unrecognized")
-
-let bits_of_connack = function
-    | Cxnack_accepted -> 0
-    | Cxnack_protocol -> 1
-    | Cxnack_id -> 2
-    | Cxnack_unavail -> 3
-    | Cxnack_userpass -> 4
-    | Cxnack_auth -> 5
 
 let fixed_header'new typ ~dup ~qos ~retain body_len =
     let msgid = (bits_of_message typ) lsl 4 in
@@ -474,55 +494,6 @@ let fixed_header typ (parms:pkt_opt) body_len =
     BE.set_int32 len 0 (encode_length body_len);
     let len = trunc (Bytes.to_string len) in
     Bytes.to_string hdr ^ len
-
-let connect_payload ?userpass ?will ?(flags = []) ?(timer = 10) id =
-    let name = addlen "MQIsdp" in
-    let version = "\003" in
-    if timer > 0xFFFF then raise (Invalid_argument "timer too large");
-    let addhdr2 flag term (flags, hdr) = match term with
-        | None -> flags, hdr
-        | Some (a, b) -> (flags lor flag),
-            (hdr ^ (addlen a) ^ (addlen b)) in
-    let adduserpass term (flags, hdr) = match term with
-        | None -> flags, hdr
-        | Some (Username s) -> (flags lor 0x80), (hdr ^ addlen s)
-        | Some (UserPass up) ->
-            addhdr2 0xC0 (Some up) (flags, hdr) in
-    let flag_nbr = function
-        | Clean_session -> 0x02
-        | Will_qos qos -> (bits_of_qos qos) lsl 3
-        | Will_retain -> 0x20 in
-    let accum a acc = acc  lor (flag_nbr a) in
-    let flags, pay =
-        ((List.fold_right accum flags 0), (addlen id))
-        |> addhdr2 0x04 will |> adduserpass userpass in
-    let tbuf = int16be timer in
-    let fbuf = Bytes.create 1 in
-    BE.set_int8 fbuf 0 flags;
-    let accum acc a = acc + (String.length a) in
-    let fields = [name; version; Bytes.to_string fbuf; Bytes.to_string tbuf; pay] in
-    let lens = List.fold_left accum 0 fields in
-    let buf = Buffer.create lens in
-    List.iter (Buffer.add_string buf) fields;
-    Buffer.contents buf
-
-let connect ?userpass ?will ?flags ?timer ?(opt = (false, Atmost_once, false)) id =
-    let cxn_pay = connect_payload ?userpass ?will ?flags ?timer id in
-    let hdr = fixed_header Connect_pkt opt (String.length cxn_pay) in
-    hdr ^ cxn_pay
-
-let connect_data d =
-    let clientid = d.clientid in
-    let userpass = d.userpass in
-    let will = d.will in
-    let flags = d.flags in
-    let timer = d.timer in
-    connect_payload ?userpass ?will ~flags ~timer clientid
-
-let connack ?(opt = (false, Atmost_once, false)) flag =
-    let hdr = fixed_header Connack_pkt opt 2 in
-    let varhdr = Bytes.to_string (bits_of_connack flag |> int16be) in
-    hdr ^ varhdr
 
 let pubpkt ?(opt = (false, Atmost_once, false)) typ id =
     let hdr = fixed_header typ opt 2 in
@@ -603,41 +574,92 @@ module Packet = struct
     Buffer.contents buf
 
 
-  let publish ?(opt = (false, Atmost_once, false)) ?(id = -1) topic payload =
-      let (_, qos, _) = opt in
-      let msgid =
+    let publish ?(opt = (false, Atmost_once, false)) ?(id = -1) topic payload =
+        let (_, qos, _) = opt in
+        let msgid =
+            if qos = Atleast_once || qos = Exactly_once then
+                let mid = if id = -1 then gen_id ()
+                else id in int16be mid |> Bytes.to_string
+            else "" in
+        let topic = addlen topic in
+        let sl = String.length in
+        let tl = sl topic + sl payload + sl msgid in
+        let buf = Buffer.create (tl + 5) in
+        let hdr = fixed_header Publish_pkt opt tl in
+        Buffer.add_string buf hdr;
+        Buffer.add_string buf topic;
+        Buffer.add_string buf msgid;
+        Buffer.add_string buf payload;
+        Buffer.contents buf
+
+
+    let publish'new ~dup ~qos ~retain ~id ~topic payload =
+        let id_data =
           if qos = Atleast_once || qos = Exactly_once then
-              let mid = if id = -1 then gen_id ()
-              else id in int16be mid |> Bytes.to_string
-          else "" in
-      let topic = addlen topic in
-      let sl = String.length in
-      let tl = sl topic + sl payload + sl msgid in
-      let buf = Buffer.create (tl + 5) in
-      let hdr = fixed_header Publish_pkt opt tl in
-      Buffer.add_string buf hdr;
-      Buffer.add_string buf topic;
-      Buffer.add_string buf msgid;
-      Buffer.add_string buf payload;
-      Buffer.contents buf
+            Bytes.to_string (int16be id)
+          else ""
+        in
+        let topic = addlen topic in
+        let sl = String.length in
+        let tl = sl topic + sl payload + sl id_data in
+        let buf = Buffer.create (tl + 5) in
+        let hdr = fixed_header'new Publish_pkt ~dup ~qos ~retain tl in
+        Buffer.add_string buf hdr;
+        Buffer.add_string buf topic;
+        Buffer.add_string buf id_data;
+        Buffer.add_string buf payload;
+        Buffer.contents buf
 
 
-  let publish'new ~dup ~qos ~retain ~id ~topic payload =
-      let id_data =
-        if qos = Atleast_once || qos = Exactly_once then
-          Bytes.to_string (int16be id)
-        else ""
-      in
-      let topic = addlen topic in
-      let sl = String.length in
-      let tl = sl topic + sl payload + sl id_data in
-      let buf = Buffer.create (tl + 5) in
-      let hdr = fixed_header'new Publish_pkt ~dup ~qos ~retain tl in
-      Buffer.add_string buf hdr;
-      Buffer.add_string buf topic;
-      Buffer.add_string buf id_data;
-      Buffer.add_string buf payload;
-      Buffer.contents buf
+    let connect_payload ?userpass ?will ?(flags = []) ?(timer = 10) id =
+        let name = addlen "MQIsdp" in
+        let version = "\003" in
+        if timer > 0xFFFF then raise (Invalid_argument "timer too large");
+        let addhdr2 flag term (flags, hdr) = match term with
+            | None -> flags, hdr
+            | Some (a, b) -> (flags lor flag),
+                (hdr ^ (addlen a) ^ (addlen b)) in
+        let adduserpass term (flags, hdr) = match term with
+            | None -> flags, hdr
+            | Some (Username s) -> (flags lor 0x80), (hdr ^ addlen s)
+            | Some (UserPass up) ->
+                addhdr2 0xC0 (Some up) (flags, hdr) in
+        let flag_nbr = function
+            | Clean_session -> 0x02
+            | Will_qos qos -> (bits_of_qos qos) lsl 3
+            | Will_retain -> 0x20 in
+        let accum a acc = acc  lor (flag_nbr a) in
+        let flags, pay =
+            ((List.fold_right accum flags 0), (addlen id))
+            |> addhdr2 0x04 will |> adduserpass userpass in
+        let tbuf = int16be timer in
+        let fbuf = Bytes.create 1 in
+        BE.set_int8 fbuf 0 flags;
+        let accum acc a = acc + (String.length a) in
+        let fields = [name; version; Bytes.to_string fbuf; Bytes.to_string tbuf; pay] in
+        let lens = List.fold_left accum 0 fields in
+        let buf = Buffer.create lens in
+        List.iter (Buffer.add_string buf) fields;
+        Buffer.contents buf
+
+    let connect ?userpass ?will ?flags ?timer ?(opt = (false, Atmost_once, false)) id =
+        let cxn_pay = connect_payload ?userpass ?will ?flags ?timer id in
+        let hdr = fixed_header Connect_pkt opt (String.length cxn_pay) in
+        hdr ^ cxn_pay
+
+    let connect_data d =
+        let clientid = d.clientid in
+        let userpass = d.userpass in
+        let will = d.will in
+        let flags = d.flags in
+        let timer = d.timer in
+        connect_payload ?userpass ?will ~flags ~timer clientid
+
+    let connack ?(opt = (false, Atmost_once, false)) ~session_present:_ status =
+      let hdr = fixed_header Connack_pkt opt 2 in
+      (* FIXME: session_present is not encoded. *)
+      let varhdr = Bytes.to_string (connection_status_to_int status |> int16be) in
+      hdr ^ varhdr
 
   end
 end
@@ -676,8 +698,9 @@ let decode_connect rb =
     Connect {clientid; userpass; will; flags; timer;}
 
 let decode_connack rb =
-    let res = ReadBuffer.read_uint16 rb |> connack_of_bits in
-    Connack res
+    let session_present = bool_of_bit (ReadBuffer.read_uint8 rb) in
+    let connection_status = connection_status_of_int (ReadBuffer.read_uint8 rb) in
+    Connack { session_present; connection_status }
 
 let decode_publish (_, qos, _) rb =
     let topic = ReadBuffer.read_string rb in
@@ -801,6 +824,7 @@ let test_header _ =
     assert_equal "\016\255\001" hdr
 
 let test_connect _ =
+    let connect_payload = Packet.Encoder.connect_payload in
     let pkt = connect_payload "1" in
     assert_equal "\000\006MQIsdp\003\000\000\n\000\0011" pkt;
     let pkt = connect_payload ~timer:11 "11" in
@@ -862,24 +886,34 @@ let test_cxn_dec _ =
     let flags = [] in
     let timer = 2000 in
     let d = {clientid; userpass; will; flags; timer} in
-    let res = connect_data d |> ReadBuffer.make |> decode_connect in
+    let res = Packet.Encoder.connect_data d |> ReadBuffer.make |> decode_connect in
     assert_equal (Connect d) res;
     let userpass = Some (UserPass ("qwerty", "supersecret")) in
     let will = Some ("topic", "go in peace") in
     let flags = [ Will_retain ; (Will_qos Atleast_once) ; Clean_session] in
     let d = {clientid; userpass; will; flags; timer} in
-    let res = connect_data d |> ReadBuffer.make |> decode_connect in
+    let res = Packet.Encoder.connect_data d |> ReadBuffer.make |> decode_connect in
     assert_equal ~printer (Connect d) res
 
 let test_connack _ =
-    let s = [ Cxnack_accepted; Cxnack_protocol; Cxnack_id; Cxnack_unavail; Cxnack_userpass; Cxnack_auth ] in
+    let all_statuses = [
+      Accepted; Unacceptable_protocol_version; Identifier_rejected;
+      Server_unavailable; Bad_username_or_password; Not_authorized] in
     let i2rb i = " \002" ^ (int16be i |> Bytes.to_string) in
-    List.iteri (fun i a -> connack a |> assert_equal (i2rb i)) s
+    List.iteri (fun i status ->
+        Packet.Encoder.connack ~session_present:false status |> assert_equal (i2rb i))
+      all_statuses
 
 let test_cxnack_dec _ =
-    let s = [ Cxnack_accepted; Cxnack_protocol; Cxnack_id; Cxnack_unavail; Cxnack_userpass; Cxnack_auth ] in
+    let all_statuses = [
+      Accepted; Unacceptable_protocol_version; Identifier_rejected;
+      Server_unavailable; Bad_username_or_password; Not_authorized] in
+    (* FIXME: This is assuming session present is always set to 0 as part of 16be *)
     let i2rb i = int16be i |> Bytes.to_string |> ReadBuffer.make |> decode_connack in
-    List.iteri (fun i a -> i2rb i |> assert_equal (Connack a)) s;
+    List.iteri (fun i connection_status -> i2rb i |> assert_equal (Connack {
+      session_present = false;
+      connection_status
+    })) all_statuses;
     assert_raises (Invalid_argument "connack flag unrecognized") (fun () -> i2rb 7)
 
 let test_pub _ =
@@ -1065,14 +1099,6 @@ let tests = ReadBuffer.tests @ MqttTests.tests
 
 module MqttClient = struct
 
-    let string_of_cxnack_flag = function
-        | Cxnack_accepted -> "accepted"
-        | Cxnack_protocol -> "invalid protocol"
-        | Cxnack_id -> "invalid id"
-        | Cxnack_unavail -> "service unavailable"
-        | Cxnack_userpass -> "invalid userpass"
-        | Cxnack_auth -> "invalid auth"
-
     type client = {
         cxn : t;
         stream: (string * string) Lwt_stream.t;
@@ -1177,14 +1203,22 @@ module MqttClient = struct
       Lwt_io.open_connection sockaddr >>= fun ((_ic, oc) as connection) ->
 
       (* Send the CONNECT packet to the server. *)
-      let connect_packet = connect ?userpass:opt.userpass ?will:opt.will ~flags:opt.flags ~timer:opt.timer opt.clientid in
+      let connect_packet = Packet.Encoder.connect
+          ?userpass:opt.userpass
+          ?will:opt.will
+          ~flags:opt.flags
+          ~timer:opt.timer
+          opt.clientid
+      in
       Lwt_io.write oc connect_packet >>= fun () ->
 
       let stream, push = Lwt_stream.create () in
       let inflight = Hashtbl.create 100 in
       read_packet connection >>= fun packet ->
         match packet with
-        | (_, Connack Cxnack_accepted) ->
+        | (_, Connack { connection_status = Accepted; session_present }) ->
+          Lwt_io.printlf "[DEBUG] Mqtt: Connected session_present=%b"
+              session_present >>= fun () ->
           let ping = Lwt.return_unit in
           let reader = Lwt.return_unit in
 
@@ -1208,7 +1242,8 @@ module MqttClient = struct
 
           Lwt.return client
 
-        | (_, Connack s) -> Lwt.fail (Failure (string_of_cxnack_flag s))
+        | (_, Connack pkt) ->
+          Lwt.fail (Failure (connection_status_to_string pkt.connection_status))
         | _ -> Lwt.fail (Failure ("Unknown packet type received after conn"))
 
 
@@ -1291,7 +1326,9 @@ let srv_cxn _client_address cxn =
     let (inch, outch) = cxn in
     Lwt.catch (fun () ->
     read_packet cxn >>= (function
-    | (_, Connect _) -> connack Cxnack_accepted |> Lwt_io.write outch
+    | (_, Connect _) ->
+      let connack = Packet.Encoder.connack ~session_present:false Accepted in
+      Lwt_io.write outch connack
     | _ -> Lwt.fail (Failure "Mqtt Server: Expected connect")) >>= fun () ->
     let rec loop g =
         read_packet cxn >>= (function

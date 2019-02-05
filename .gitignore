@@ -1,6 +1,8 @@
 *.byte
 .*
 _build
+_tmp
+_esy
 setup.data
 setup.log
 !.gitignore

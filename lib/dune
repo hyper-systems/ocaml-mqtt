@@ -3,6 +3,7 @@
  (name Mqtt)
  (public_name mqtt)
  (wrapped false)
+ (preprocess (pps lwt_ppx))
  (libraries lwt
             lwt.unix
             oUnit

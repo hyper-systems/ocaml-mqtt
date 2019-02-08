@@ -15,6 +15,7 @@
     "@opam/merlin": "*",
     "@opam/ocplib-endian": ">=0.6",
     "@opam/ounit": "*",
-    "@opam/lwt": "*"
+    "@opam/lwt": "*",
+    "@opam/lwt_ppx": "*"
   }
 }

@@ -132,6 +132,8 @@ module Mqtt
       rb.pos <- 0;
       rb.buf <- newbuf
 
+
+
     let make str =
       let rb = create () in
       add_string rb str;
@@ -323,7 +325,12 @@ module Mqtt
     userpass: cxn_userpass option;
     will: (string * string) option;
     flags: cxn_flags list;
-    timer: int;
+    keep_alive: int;
+  }
+
+  type client_options = {
+    ping_timeout: float;
+    cxn_data: cxn_data;
   }
 
   type connection_status =
@@ -611,10 +618,10 @@ module Mqtt
         Buffer.contents buf
 
 
-      let connect_payload ?userpass ?will ?(flags = []) ?(timer = 10) id =
+      let connect_payload ?userpass ?will ?(flags = []) ?(keep_alive = 10) id =
         let name = addlen "MQIsdp" in
         let version = "\003" in
-        if timer > 0xFFFF then raise (Invalid_argument "timer too large");
+        if keep_alive > 0xFFFF then raise (Invalid_argument "keep_alive too large");
         let addhdr2 flag term (flags, hdr) = match term with
           | None -> flags, hdr
           | Some (a, b) -> (flags lor flag),
@@ -632,7 +639,7 @@ module Mqtt
         let flags, pay =
           ((List.fold_right accum flags 0), (addlen id))
           |> addhdr2 0x04 will |> adduserpass userpass in
-        let tbuf = int16be timer in
+        let tbuf = int16be keep_alive in
         let fbuf = Bytes.create 1 in
         BE.set_int8 fbuf 0 flags;
         let accum acc a = acc + (String.length a) in
@@ -642,8 +649,8 @@ module Mqtt
         List.iter (Buffer.add_string buf) fields;
         Buffer.contents buf
 
-      let connect ?userpass ?will ?flags ?timer ?(opt = (false, Atmost_once, false)) id =
-        let cxn_pay = connect_payload ?userpass ?will ?flags ?timer id in
+      let connect ?userpass ?will ?flags ?keep_alive ?(opt = (false, Atmost_once, false)) id =
+        let cxn_pay = connect_payload ?userpass ?will ?flags ?keep_alive id in
         let hdr = fixed_header Connect_pkt opt (String.length cxn_pay) in
         hdr ^ cxn_pay
 
@@ -652,8 +659,8 @@ module Mqtt
         let userpass = d.userpass in
         let will = d.will in
         let flags = d.flags in
-        let timer = d.timer in
-        connect_payload ?userpass ?will ~flags ~timer clientid
+        let keep_alive = d.keep_alive in
+        connect_payload ?userpass ?will ~flags ~keep_alive clientid
 
       let connack ?(opt = (false, Atmost_once, false)) ~session_present status =
         let fixed_header = fixed_header Connack_pkt opt 2 in
@@ -671,7 +678,7 @@ module Mqtt
     if "\000\006MQIsdp\003" <> lead then
       raise (Invalid_argument "invalid MQIsdp or version");
     let hdr = ReadBuffer.read_uint8 rb in
-    let timer = ReadBuffer.read_uint16 rb in
+    let keep_alive = ReadBuffer.read_uint16 rb in
     let has_username = 0 <> (hdr land 0x80) in
     let has_password = 0 <> (hdr land 0xC0) in
     let will_flag = bool_of_bit ((hdr land 0x04) lsr 2) in
@@ -695,7 +702,7 @@ module Mqtt
     let flags = if clean_session then [ Clean_session ] else [] in
     let flags = opt_with (fun qos -> (Will_qos qos) :: flags ) flags will_qos in
     let flags = if will_retain then Will_retain :: flags else flags in
-    Connect {clientid; userpass; will; flags; timer;}
+    Connect {clientid; userpass; will; flags; keep_alive;}
 
   let decode_connack rb =
     let flags = ReadBuffer.read_uint8 rb in
@@ -774,8 +781,7 @@ module Mqtt
     let retain = bool_of_bit retain in
     (typ, (dup, qos, retain))
 
-  let read_packet ctx =
-    let (inch, _) = ctx in
+  let read_packet inch =
     Lwt_io.read_char inch >>= fun header_byte ->
     let (msgid, opts) = decode_fixed_header (Char.code header_byte) in
     decode_length inch >>= fun count ->
@@ -828,10 +834,10 @@ module Mqtt
       let connect_payload = Packet.Encoder.connect_payload in
       let pkt = connect_payload "1" in
       assert_equal "\000\006MQIsdp\003\000\000\n\000\0011" pkt;
-      let pkt = connect_payload ~timer:11 "11" in
+      let pkt = connect_payload ~keep_alive:11 "11" in
       assert_equal "\000\006MQIsdp\003\000\000\011\000\00211" pkt;
-      let pkt () = connect_payload ~timer:0x10000 "111" in
-      assert_raises (Invalid_argument "timer too large") pkt;
+      let pkt () = connect_payload ~keep_alive:0x10000 "111" in
+      assert_raises (Invalid_argument "keep_alive too large") pkt;
       let pkt = connect_payload ~userpass:(Username "bob") "2" in
       assert_equal "\000\006MQIsdp\003\128\000\n\000\0012\000\003bob" pkt;
       let lstr = Bytes.create 0x10000 |> Bytes.to_string in (* long string *)
@@ -870,13 +876,13 @@ module Mqtt
       let clientid = cd.clientid in
       let userpass = opt_with (function Username u -> u | UserPass (u, p) -> u^"_"^p) "none" cd.userpass in
       let will = opt_with (fun (t, m) -> t^"_"^m) "will:none" cd.will in
-      let timer =  cd.timer in
+      let keep_alive =  cd.keep_alive in
       let f2s = function
         | Will_retain -> "retain"
         | Clean_session -> "session"
         | Will_qos qos -> string_of_int (bits_of_qos qos) in
       let flags = String.concat "," (List.map f2s cd.flags) in
-      Printf.sprintf "%s %s %s %s %d" clientid userpass will flags timer
+      Printf.sprintf "%s %s %s %s %d" clientid userpass will flags keep_alive
                                 |_ -> ""
 
     let test_cxn_dec _ =
@@ -885,14 +891,14 @@ module Mqtt
       let userpass = None in
       let will = None in
       let flags = [] in
-      let timer = 2000 in
-      let d = {clientid; userpass; will; flags; timer} in
+      let keep_alive = 2000 in
+      let d = {clientid; userpass; will; flags; keep_alive} in
       let res = Packet.Encoder.connect_data d |> ReadBuffer.make |> decode_connect in
       assert_equal (Connect d) res;
       let userpass = Some (UserPass ("qwerty", "supersecret")) in
       let will = Some ("topic", "go in peace") in
       let flags = [ Will_retain ; (Will_qos Atleast_once) ; Clean_session] in
-      let d = {clientid; userpass; will; flags; timer} in
+      let d = {clientid; userpass; will; flags; keep_alive} in
       let res = Packet.Encoder.connect_data d |> ReadBuffer.make |> decode_connect in
       assert_equal ~printer (Connect d) res
 
@@ -1118,16 +1124,17 @@ module Mqtt
       mutable reader : unit Lwt.t;
       mutable pinger : unit Lwt.t;
       error_fn : (client -> exn -> unit Lwt.t);
+      reset_ping_timer : unit Lwt_mvar.t;
     }
 
     let default_error_fn _client exn =
       Lwt_io.printlf "mqtt error: %s\n%s" (Printexc.to_string exn) (Printexc.get_backtrace ())
 
-    let connect_options ?(clientid = "OCamlMQTT") ?userpass ?will ?(flags= [Clean_session]) ?(timer = 10) () =
-      { clientid; userpass; will; flags; timer}
+    let options ?(clientid = "OCamlMQTT") ?userpass ?will ?(flags= [Clean_session]) ?(keep_alive = 10) ?(ping_timeout = 5.0) () =
+      { ping_timeout; cxn_data = { clientid; userpass; will; flags; keep_alive } }
 
     let read_packets client () =
-      let ((_in_chan, out_chan) as cxn) = client.cxn in
+      let ((in_chan, out_chan)) = client.cxn in
 
       let ack_inflight id pkt =
         try
@@ -1152,7 +1159,7 @@ module Mqtt
       in
 
       let rec loop () =
-        read_packet cxn >>= fun ((_dup, qos, _retain), packet) -> begin
+        read_packet in_chan >>= fun ((_dup, qos, _retain), packet) -> begin
           match packet with
           (* Publish with QoS 0: push *)
           | Publish (None, topic, payload) when qos = Atmost_once ->
@@ -1185,67 +1192,125 @@ module Mqtt
           | Pubcomp id ->
             ack_inflight id packet
 
-          | Pingresp -> Lwt.return_unit
+          | Pingresp ->
+            let%lwt () =
+              if not (Lwt_mvar.is_empty client.reset_ping_timer) then
+                Lwt_io.printl "[DEBUG] Reset ping timer mvar is not empty, will block."
+              else Lwt.return_unit
+            in
+            Lwt_mvar.put client.reset_ping_timer ()
 
           | _ -> Lwt.fail (Failure "unknown packet from server")
-        end >>= loop
+        end >>= fun () -> loop ()
       in
       loop ()
 
+
     let wrap_catch client f = Lwt.catch f (client.error_fn client)
 
-    let pinger cxn timeout () =
-      let (_, oc) = cxn in
-      let tmo = 0.9 *. (float_of_int timeout) in (* 10% leeway *)
-      let rec loop g =
-        Lwt_unix.sleep tmo >>= fun () ->
-        pingreq () |> Lwt_io.write oc >>= fun () ->
-        loop g in
+    (* TODO: Better name *)
+    exception Network_timeout
+
+    let disconnect client =
+      let%lwt () = Lwt_io.printl "diconnect" in
+      let (ic, oc) = client.cxn in
+
+      (* Terminate the packet stream. *)
+      client.push None;
+
+      (* Cancel the reader and pinger threads. *)
+      Lwt.cancel client.reader;
+      Lwt.cancel client.pinger;
+
+      (* Send the disconnect packet to server. *)
+      Lwt_io.write oc (Packet.Encoder.disconnect ()) >>= fun () ->
+
+      (* Close the connection. *)
+      let%lwt () = Lwt_io.flush oc in
+      let%lwt () = Lwt_io.close ic in
+      Lwt_io.close oc
+
+
+    let ping_timer client ?(ping_timeout = 5.0) ~keep_alive () =
+      let (_, output) = client.cxn in
+      let keep_alive = 0.9 *. (float_of_int keep_alive) in (* 10% leeway *)
+      let rec loop () =
+
+        (* Wait for keep alive interval. *)
+        let%lwt () = Lwt_unix.sleep keep_alive in
+
+        (* Send PINGREQ. *)
+        let pingreq_packet = pingreq () in
+        let%lwt () = Lwt_io.write output pingreq_packet in
+
+        let timeout =
+          let%lwt () = Lwt_unix.sleep ping_timeout in
+          let%lwt () = disconnect client in
+          client.error_fn client Network_timeout
+        in
+
+        let reset =
+          let%lwt () = Lwt_mvar.take client.reset_ping_timer in
+          Lwt.cancel timeout;
+          loop ()
+        in
+
+        Lwt.choose [timeout; reset] in
       loop ()
 
 
     let () = Printexc.record_backtrace true
 
 
-    let connect ?(opt = connect_options ()) ?(error_fn = default_error_fn) ?(port = 1883) host =
+    let connect ?(opt = options ()) ?(error_fn = default_error_fn) ?(port = 1883) host =
       (* Estabilish a socket connection. *)
       Lwt_unix.getaddrinfo host (string_of_int port) [] >>= fun addresses ->
       let sockaddr = Lwt_unix.((List.hd addresses).ai_addr) in
-      Lwt_io.open_connection sockaddr >>= fun ((_ic, oc) as connection) ->
+      Lwt_io.open_connection sockaddr >>= fun ((ic, oc) as connection) ->
 
       (* Send the CONNECT packet to the server. *)
       let connect_packet = Packet.Encoder.connect
-          ?userpass:opt.userpass
-          ?will:opt.will
-          ~flags:opt.flags
-          ~timer:opt.timer
-          opt.clientid
+          ?userpass:opt.cxn_data.userpass
+          ?will:opt.cxn_data.will
+          ~flags:opt.cxn_data.flags
+          ~keep_alive:opt.cxn_data.keep_alive
+          opt.cxn_data.clientid
       in
       Lwt_io.write oc connect_packet >>= fun () ->
 
       let stream, push = Lwt_stream.create () in
       let inflight = Hashtbl.create 100 in
-      read_packet connection >>= fun packet ->
+      read_packet ic >>= fun packet ->
       match packet with
       | (_, Connack { connection_status = Accepted; session_present }) ->
         Lwt_io.printlf "[DEBUG] Mqtt: Connected session_present=%b"
           session_present >>= fun () ->
-        let ping = Lwt.return_unit in
+        let pinger = Lwt.return_unit in
         let reader = Lwt.return_unit in
 
-        let client = { cxn = connection; stream; push; inflight; reader; pinger=ping; error_fn; } in
+        let reset_ping_timer = Lwt_mvar.create_empty () in
+
+        let client = {
+          cxn = connection;
+          stream;
+          push;
+          inflight;
+          reader;
+          pinger;
+          reset_ping_timer;
+          error_fn;
+        } in
         (* let pinger = wrap_catch client (pinger connection opt.timer) in *)
         (* let reader = wrap_catch client (read_packets client) in *)
 
-        let pinger = pinger connection opt.timer () in
+        let pinger = ping_timer client ~ping_timeout:opt.ping_timeout ~keep_alive:opt.cxn_data.keep_alive () in
         let reader = read_packets client () in
 
         Lwt.async (fun () ->
             Lwt.catch (fun () -> pinger <&> reader)
               (function
                 | Lwt.Canceled ->
-                  (* Lwt_io.printl "[DEBUG] Mqtt_client: Stopped client thread." >>= fun () -> *)
-                  Lwt.return_unit
+                  Lwt_io.printl "[DEBUG] Mqtt_client: Stopped client thread."
                 | exn -> Lwt.fail exn));
 
         client.pinger <- pinger;
@@ -1278,34 +1343,13 @@ module Mqtt
       let (_, oc) = client.cxn in
       let subscribe_packet = Packet.Encoder.subscribe ?opt ?id topics in
       let qos_list = List.map (fun (_, q) -> q) topics in
-      let mid = !msgid in
+      let pkt_id = !msgid in
       let cond = Lwt_condition.create () in
-      Hashtbl.add client.inflight mid (cond, (Suback (mid, qos_list)));
+      Hashtbl.add client.inflight pkt_id (cond, (Suback (pkt_id, qos_list)));
       wrap_catch client (fun () ->
           Lwt_io.write oc subscribe_packet >>= fun () ->
           Lwt_condition.wait cond >>= fun _ ->
           Lwt.return_unit)
-
-
-    (* TODO: push None to client; stop reader and pinger ?? *)
-    let disconnect client =
-      let (ic, oc) = client.cxn in
-
-      (* Terminate the packet stream. *)
-      client.push None;
-
-      (* Cancel the reader and pinger threads. *)
-      Lwt.cancel client.reader;
-      Lwt.cancel client.pinger;
-
-      (* Send the disconnect packet to server. *)
-      Lwt_io.write oc (Packet.Encoder.disconnect ()) >>= fun () ->
-
-      (* Close the connection. *)
-      Lwt_io.flush oc >>= fun () ->
-      Lwt_io.close ic >>= fun () ->
-      Lwt_io.close oc
-
 
     let sub_stream client = client.stream
 
@@ -1336,13 +1380,13 @@ module Mqtt
     let srv_cxn _client_address cxn =
       let (inch, outch) = cxn in
       Lwt.catch (fun () ->
-          read_packet cxn >>= (function
+          read_packet inch >>= (function
               | (_, Connect _) ->
                 let connack = Packet.Encoder.connack ~session_present:false Accepted in
                 Lwt_io.write outch connack
               | _ -> Lwt.fail (Failure "Mqtt Server: Expected connect")) >>= fun () ->
           let rec loop g =
-            read_packet cxn >>= (function
+            read_packet inch >>= (function
                 | (_, Publish s) -> handle_pub s
                 | (_, Subscribe s) -> handle_sub outch s
                 | (_, Pingreq) -> pingresp () |> Lwt_io.write outch

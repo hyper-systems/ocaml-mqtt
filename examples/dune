@@ -3,20 +3,3 @@
   (name Subscriber)
   (modules Subscriber)
   (libraries mqtt lwt))
-
-
-
-(executable
-  (name Timer)
-  (modules Timer)
-  (libraries lwt lwt.unix)
-  (preprocess (pps lwt_ppx)))
-
-
-(executable
-  (name Mvar)
-  (modules Mvar)
-  (libraries lwt lwt.unix)
-  (preprocess (pps lwt_ppx)))
-
-

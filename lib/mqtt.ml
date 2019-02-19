@@ -1257,7 +1257,12 @@ module Mqtt
           loop ()
         in
 
-        Lwt.choose [timeout; reset] in
+        Lwt.catch (fun () -> Lwt.choose [timeout; reset])
+          (function
+           | Lwt.Canceled ->
+             let%lwt () = Lwt_io.printl "[DEBUG] Mqtt: Timeout canceled..." in
+             loop ()
+          | exn -> Lwt.fail exn) in
       loop ()
 
 

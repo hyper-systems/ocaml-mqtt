@@ -1134,6 +1134,7 @@ module Mqtt
       { ping_timeout; cxn_data = { clientid; userpass; will; flags; keep_alive } }
 
     let read_packets client () =
+      let%lwt () = Lwt_io.printl "[DEBUG] Mqtt: Starting reader..." in
       let ((in_chan, out_chan)) = client.cxn in
 
       let ack_inflight id pkt =
@@ -1212,7 +1213,7 @@ module Mqtt
     exception Network_timeout
 
     let disconnect client =
-      let%lwt () = Lwt_io.printl "diconnect" in
+      let%lwt () = Lwt_io.printl "[DEBUG] Mqtt: Disconnecting client..." in
       let (ic, oc) = client.cxn in
 
       (* Terminate the packet stream. *)
@@ -1232,6 +1233,7 @@ module Mqtt
 
 
     let ping_timer client ?(ping_timeout = 5.0) ~keep_alive () =
+      let%lwt () = Lwt_io.printl "[DEBUG] Mqtt: Starting ping timer..." in
       let (_, output) = client.cxn in
       let keep_alive = 0.9 *. (float_of_int keep_alive) in (* 10% leeway *)
       let rec loop () =
@@ -1300,17 +1302,16 @@ module Mqtt
           reset_ping_timer;
           error_fn;
         } in
-        (* let pinger = wrap_catch client (pinger connection opt.timer) in *)
-        (* let reader = wrap_catch client (read_packets client) in *)
 
-        let pinger = ping_timer client ~ping_timeout:opt.ping_timeout ~keep_alive:opt.cxn_data.keep_alive () in
-        let reader = read_packets client () in
+        let pinger = wrap_catch client @@ ping_timer client ~ping_timeout:opt.ping_timeout ~keep_alive:opt.cxn_data.keep_alive in
+        let reader = wrap_catch client @@ read_packets client in
 
         Lwt.async (fun () ->
             Lwt.catch (fun () -> pinger <&> reader)
               (function
                 | Lwt.Canceled ->
-                  Lwt_io.printl "[DEBUG] Mqtt_client: Stopped client thread."
+                  let%lwt () = Lwt_io.printl "[DEBUG] Mqtt_client: Stopped client thread." in
+                  error_fn client Lwt.Canceled
                 | exn -> Lwt.fail exn));
 
         client.pinger <- pinger;

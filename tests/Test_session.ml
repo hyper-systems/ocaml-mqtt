@@ -1,5 +1,4 @@
-module Mqtt_client = Mqtt.Mqtt.MqttClient
-module Mqtt = Mqtt.Mqtt
+module Mqtt_client = Mqtt.Client
 let (>>=) = Lwt.bind
 let (<&>) = Lwt.(<&>)
 
@@ -7,7 +6,7 @@ let (<&>) = Lwt.(<&>)
 let sub () =
   let connect () =
     let clientid = "sub-client-1" in
-    let opt = Mqtt_client.connect_options ~flags:[] ~clientid () in
+    let opt = Mqtt_client.options ~flags:[] ~clientid () in
     Mqtt_client.connect ~opt "localhost" >>= fun client ->
     Mqtt_client.subscribe client [("topic-1", Mqtt.Atleast_once)] >>= fun () ->
     Lwt.return client
@@ -18,12 +17,12 @@ let sub () =
     connect ()
   in
   connect () >>= fun client ->
-  let stream = Mqtt_client.sub_stream client in
+  let stream = Mqtt_client.messages client in
   Lwt_stream.get stream >>= function
     | Some (_topic, payload) ->
       assert (payload = "msg-1");
       reconnect client >>= fun client ->
-      let stream = Mqtt_client.sub_stream client in
+      let stream = Mqtt_client.messages client in
       Lwt_stream.get stream >>= (function
         | Some (_topic, payload) ->
           assert (payload = "msg-2");
@@ -41,7 +40,7 @@ let sub () =
 
 let pub () =
   let clientid = "pub-client-1" in
-  let opt = Mqtt_client.connect_options ~clientid () in
+  let opt = Mqtt_client.options ~clientid () in
   Mqtt_client.connect ~opt "localhost" >>= fun client ->
   let qos = Mqtt.Atleast_once in
   Mqtt_client.publish ~qos client "topic-1" "msg-1" >>= fun () ->

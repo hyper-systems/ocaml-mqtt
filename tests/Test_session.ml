@@ -5,9 +5,8 @@ let (<&>) = Lwt.(<&>)
 
 let sub () =
   let connect () =
-    let clientid = "sub-client-1" in
-    let opt = Mqtt_client.options ~flags:[] ~clientid () in
-    Mqtt_client.connect ~opt "localhost" >>= fun client ->
+    let client_id = "sub-client-1" in
+    Mqtt_client.connect ~id:client_id ~clean_session:false "localhost" >>= fun client ->
     Mqtt_client.subscribe client [("topic-1", Mqtt.Atleast_once)] >>= fun () ->
     Lwt.return client
   in
@@ -19,29 +18,28 @@ let sub () =
   connect () >>= fun client ->
   let stream = Mqtt_client.messages client in
   Lwt_stream.get stream >>= function
-    | Some (_topic, payload) ->
-      assert (payload = "msg-1");
-      reconnect client >>= fun client ->
-      let stream = Mqtt_client.messages client in
-      Lwt_stream.get stream >>= (function
+  | Some (_topic, payload) ->
+    assert (payload = "msg-1");
+    reconnect client >>= fun client ->
+    let stream = Mqtt_client.messages client in
+    Lwt_stream.get stream >>= (function
         | Some (_topic, payload) ->
           assert (payload = "msg-2");
           Lwt_stream.get stream >>= (function
-            | Some (_topic, payload) ->
-              assert (payload = "msg-3");
-              Mqtt_client.disconnect client
-            | None ->
-              assert false)
+              | Some (_topic, payload) ->
+                assert (payload = "msg-3");
+                Mqtt_client.disconnect client
+              | None ->
+                assert false)
         | None ->
           assert false)
-    | None ->
-      assert false
+  | None ->
+    assert false
 
 
 let pub () =
-  let clientid = "pub-client-1" in
-  let opt = Mqtt_client.options ~clientid () in
-  Mqtt_client.connect ~opt "localhost" >>= fun client ->
+  let client_id = "pub-client-1" in
+  Mqtt_client.connect ~id:client_id "localhost" >>= fun client ->
   let qos = Mqtt.Atleast_once in
   Mqtt_client.publish ~qos client "topic-1" "msg-1" >>= fun () ->
   (* Give some time to the subscriber to disconnect. *)

@@ -353,7 +353,7 @@ module Packet = struct
       let addhdr2 flag term (flags, hdr) = match term with
         | None -> flags, hdr
         | Some (a, b) -> (flags lor flag),
-                          (hdr ^ (addlen a) ^ (addlen b)) in
+                         (hdr ^ (addlen a) ^ (addlen b)) in
       let adduserpass term (flags, hdr) = match term with
         | None -> flags, hdr
         | Some (Username s) -> (flags lor 0x80), (hdr ^ addlen s)
@@ -533,18 +533,15 @@ module Client = struct
     inflight : (int, (unit Lwt_condition.t * packet)) Hashtbl.t;
     mutable reader : unit Lwt.t;
     mutable pinger : unit Lwt.t;
-    error_fn : (client -> exn -> unit Lwt.t);
+    on_error : (client -> exn -> unit Lwt.t);
     reset_ping_timer : unit Lwt_mvar.t;
+    should_stop_reader : unit Lwt_condition.t;
   }
 
   let default_error_fn _client exn =
     Lwt_io.printlf "mqtt error: %s\n%s" (Printexc.to_string exn) (Printexc.get_backtrace ())
 
-  let options ?(clientid = "OCamlMQTT") ?userpass ?will ?(flags= [Clean_session]) ?(keep_alive = 10) ?(ping_timeout = 5.0) () =
-    { ping_timeout; cxn_data = { clientid; userpass; will; flags; keep_alive } }
-
   let read_packets client () =
-    let%lwt () = Log.info (fun log -> log "starting reader...") in
     let ((in_chan, out_chan)) = client.cxn in
 
     let ack_inflight id pkt =
@@ -583,7 +580,7 @@ module Client = struct
         (* Publish with QoS 1 *)
         | Publish (Some id, topic, payload) when qos = Atleast_once ->
           (* - Push the message to the consumer queue.
-              - Send back the PUBACK packet. *)
+             - Send back the PUBACK packet. *)
           push topic payload >>= fun () ->
           let puback = Packet.Encoder.puback id in
           Lwt_io.write out_chan puback >>= fun () ->
@@ -605,51 +602,58 @@ module Client = struct
 
         | Pingresp ->
           let%lwt () = Log.debug (fun log ->
-            if not (Lwt_mvar.is_empty client.reset_ping_timer) then
-              log "Reset ping timer mvar is not empty, will block."
-            else Lwt.return_unit) in
+              if not (Lwt_mvar.is_empty client.reset_ping_timer) then
+                log "Reset ping timer mvar is not empty, will block."
+              else Lwt.return_unit) in
 
           Lwt_mvar.put client.reset_ping_timer ()
 
         | _ -> Lwt.fail (Failure "unknown packet from server")
       end >>= fun () -> loop ()
     in
-    loop ()
+    let%lwt () = Log.debug (fun log -> log "Starting reader loop...") in
+    Lwt.pick [
+      (Lwt_condition.wait client.should_stop_reader >>= fun () -> Log.info (fun log -> log "Stopping reader loop..."));
+      loop ()
+    ]
 
 
-  let wrap_catch client f = Lwt.catch f (client.error_fn client)
+  let wrap_catch client f = Lwt.catch f (client.on_error client)
 
-  (* TODO: Better name *)
-  exception Network_timeout
+  exception Ping_timeout
+
 
   let disconnect client =
     let%lwt () = Log.info (fun log -> log "Disconnecting client...") in
-    let (ic, oc) = client.cxn in
+    let (_, oc) = client.cxn in
 
-    (* Terminate the packet stream. *)
+    (* Notify the subscriber about termination. *)
     client.push None;
 
-    (* Cancel the reader and pinger threads. *)
-    Lwt.cancel client.reader;
-    Lwt.cancel client.pinger;
+    (* Stop reading packets. *)
+    Lwt_condition.signal client.should_stop_reader ();
 
     (* Send the disconnect packet to server. *)
-    Lwt_io.write oc (Packet.Encoder.disconnect ()) >>= fun () ->
+    let%lwt () = Lwt_io.write oc (Packet.Encoder.disconnect ()) in
+    Log.info (fun log -> log "Did disconnect client...")
 
-    (* Close the connection. *)
+
+  let shutdown client =
+    let%lwt () = Log.debug (fun log -> log "Shutting down the connection...") in
+    let (ic, oc) = client.cxn in
     let%lwt () = Lwt_io.flush oc in
     let%lwt () = Lwt_io.close ic in
-    let%lwt () = Log.info (fun log -> log "Closing connection...") in
-    Lwt_io.close oc
+    let%lwt () = Lwt_io.close oc in
+    Log.debug (fun log -> log "Did shut down the connection.")
 
 
   let ping_timer client ?(ping_timeout = 5.0) ~keep_alive () =
     let%lwt () = Log.debug (fun log -> log "Starting ping timer...") in
     let (_, output) = client.cxn in
-    let keep_alive = 0.9 *. (float_of_int keep_alive) in (* 10% leeway *)
+    let keep_alive = 0.9 *. float_of_int keep_alive in (* 10% leeway *)
     let rec loop () =
-
       (* Wait for keep alive interval. *)
+      let%lwt () = Log.debug (fun log -> log "Waiting for keep_alive interval...") in
       let%lwt () = Lwt_unix.sleep keep_alive in
 
       (* Send PINGREQ. *)
@@ -659,29 +663,34 @@ module Client = struct
 
       let timeout =
         let%lwt () = Lwt_unix.sleep ping_timeout in
+        let%lwt () = Log.debug (fun log -> log "Ping request timed out. ") in
         let%lwt () = disconnect client in
-        client.error_fn client Network_timeout
+        client.on_error client Ping_timeout
       in
 
       let reset =
         let%lwt () = Lwt_mvar.take client.reset_ping_timer in
+        let%lwt () = Log.debug (fun log -> log "Cancelling timeout... ") in
         Lwt.cancel timeout;
         loop ()
       in
-
       Lwt.catch (fun () -> Lwt.choose [timeout; reset])
         (function
-          | Lwt.Canceled ->
-            let%lwt () = Log.debug (fun log -> log "Ping timeout canceled...") in
-            loop ()
-        | exn -> Lwt.fail exn) in
+          | Lwt.Canceled -> Log.debug (fun log -> log "Did cancel timeout. ")
+          | exn -> Lwt.fail exn)
+    in
     loop ()
 
 
   let () = Printexc.record_backtrace true
 
 
-  let connect ?(opt = options ()) ?(error_fn = default_error_fn) ?(port = 1883) host =
+  let connect
+      ?(id = "OCamlMQTT") ?credentials ?will ?(clean_session=true)
+      ?(keep_alive = 10) ?(ping_timeout = 5.0) ?(on_error = default_error_fn) ?(port = 1883) host =
+
+    let flags = if clean_session then [Clean_session] else [] in
+    let opt = { ping_timeout; cxn_data = { clientid = id; userpass = credentials; will; flags; keep_alive } } in
     let%lwt () = Log.info (fun log -> log "Connecting... host=%s port=%d" host port) in
 
     (* Estabilish a socket connection. *)
@@ -720,19 +729,14 @@ module Client = struct
         reader;
         pinger;
         reset_ping_timer;
-        error_fn;
+        should_stop_reader = Lwt_condition.create ();
+        on_error;
       } in
 
       let pinger = wrap_catch client @@ ping_timer client ~ping_timeout:opt.ping_timeout ~keep_alive:opt.cxn_data.keep_alive in
       let reader = wrap_catch client @@ read_packets client in
 
-      Lwt.async (fun () ->
-          Lwt.catch (fun () -> pinger <&> reader)
-            (function
-              | Lwt.Canceled ->
-                let%lwt () = Log.debug (fun log -> log "Main client thread canceled.") in
-                error_fn client Lwt.Canceled
-              | exn -> Lwt.fail exn));
+      Lwt.async (fun () -> pinger <&> reader >>= fun () -> shutdown client);
 
       client.pinger <- pinger;
       client.reader <- reader;

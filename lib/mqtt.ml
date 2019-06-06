@@ -685,18 +685,31 @@ module Client = struct
   let () = Printexc.record_backtrace true
 
 
+  let open_tls_connection ~ca_file host port =
+    let%lwt authenticator = X509_lwt.authenticator (`Ca_file ca_file) in
+    Tls_lwt.connect authenticator (host, port)
+
+
+  let open_tcp_connection host port =
+    Lwt_unix.getaddrinfo host (string_of_int port) [] >>= fun addresses ->
+    let sockaddr = Lwt_unix.((List.hd addresses).ai_addr) in
+    Lwt_io.open_connection sockaddr
+
+
   let connect
-      ?(id = "OCamlMQTT") ?credentials ?will ?(clean_session=true)
+      ?(id = "OCamlMQTT") ?tls_ca ?credentials ?will ?(clean_session=true)
       ?(keep_alive = 10) ?(ping_timeout = 5.0) ?(on_error = default_error_fn) ?(port = 1883) host =
 
     let flags = if clean_session then [Clean_session] else [] in
     let opt = { ping_timeout; cxn_data = { clientid = id; userpass = credentials; will; flags; keep_alive } } in
     let%lwt () = Log.info (fun log -> log "Connecting... host=%s port=%d" host port) in
 
-    (* Estabilish a socket connection. *)
-    Lwt_unix.getaddrinfo host (string_of_int port) [] >>= fun addresses ->
-    let sockaddr = Lwt_unix.((List.hd addresses).ai_addr) in
-    Lwt_io.open_connection sockaddr >>= fun ((ic, oc) as connection) ->
+    let open_connection =
+      match tls_ca with
+      | Some ca_file -> open_tls_connection ~ca_file host port
+      | None -> open_tcp_connection host port in
+
+    open_connection >>= fun ((ic, oc) as connection) ->
     let%lwt () = Log.debug (fun log -> log "Opened connection.") in
 
     (* Send the CONNECT packet to the server. *)

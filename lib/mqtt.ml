@@ -690,10 +690,17 @@ module Client = struct
     Tls_lwt.connect authenticator (host, port)
 
 
+  exception Connection_error of string
+
+
   let open_tcp_connection host port =
     Lwt_unix.getaddrinfo host (string_of_int port) [] >>= fun addresses ->
-    let sockaddr = Lwt_unix.((List.hd addresses).ai_addr) in
-    Lwt_io.open_connection sockaddr
+    match addresses with
+    | address :: _ ->
+      let sockaddr = Lwt_unix.(address.ai_addr) in
+      Lwt_io.open_connection sockaddr
+    | _ ->
+      Lwt.fail (Connection_error ("Error: mqtt: could not get address info for " ^ host))
 
 
   let connect
@@ -757,9 +764,9 @@ module Client = struct
       Lwt.return client
 
     | (_, Connack pkt) ->
-      Lwt.fail (Failure (connection_status_to_string pkt.connection_status))
+      Lwt.fail (Connection_error (connection_status_to_string pkt.connection_status))
 
-    | _ -> Lwt.fail (Failure ("Unknown packet type received after conn"))
+    | _ -> Lwt.fail (Connection_error ("Invalid response from broker on connection"))
 
 
   let connection c = c.cxn

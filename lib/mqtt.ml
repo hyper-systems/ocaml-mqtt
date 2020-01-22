@@ -705,18 +705,29 @@ module Client = struct
 
   let connect
       ?(id = "OCamlMQTT") ?tls_ca ?credentials ?will ?(clean_session=true)
-      ?(keep_alive = 10) ?(ping_timeout = 5.0) ?(on_error = default_error_fn) ?(port = 1883) host =
+      ?(keep_alive = 10) ?(ping_timeout = 5.0) ?(on_error = default_error_fn) ?(port = 1883) hosts =
 
     let flags = if clean_session then [Clean_session] else [] in
     let opt = { ping_timeout; cxn_data = { clientid = id; userpass = credentials; will; flags; keep_alive } } in
-    let%lwt () = Log.info (fun log -> log "Connecting... host=%s port=%d" host port) in
 
-    let open_connection =
-      match tls_ca with
-      | Some ca_file -> open_tls_connection ~ca_file host port
-      | None -> open_tcp_connection host port in
 
-    open_connection >>= fun ((ic, oc) as connection) ->
+    let rec try_connect hosts =
+      match hosts with
+      | [] -> Lwt.fail (Connection_error "Could not connect to provided hosts")
+      | host :: hosts ->
+        try%lwt
+          let connection =
+            match tls_ca with
+            | Some ca_file -> open_tls_connection ~ca_file host port
+            | None -> open_tcp_connection host port in
+          let%lwt () = Log.info (fun log -> log "Connected. host=%s port=%d" host port) in
+          connection
+        with _ ->
+          let%lwt () = Log.debug (fun log -> log "Could not connect to host=%s port=%d, trying next..." host port) in
+          try_connect hosts
+    in
+
+    try_connect hosts >>= fun ((ic, oc) as connection) ->
     let%lwt () = Log.debug (fun log -> log "Opened connection.") in
 
     (* Send the CONNECT packet to the server. *)

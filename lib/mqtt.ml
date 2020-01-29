@@ -713,17 +713,18 @@ module Client = struct
 
     let rec try_connect hosts =
       match hosts with
-      | [] -> Lwt.fail (Connection_error "Could not connect to provided hosts")
+      | [] -> Lwt.fail (Connection_error "Could not connect to any of the provided hosts")
       | host :: hosts ->
         try%lwt
-          let connection =
+          let%lwt () = Log.info (fun log -> log "Connecting... host=%s port=%d" host port) in
+          let%lwt connection =
             match tls_ca with
             | Some ca_file -> open_tls_connection ~ca_file host port
             | None -> open_tcp_connection host port in
-          let%lwt () = Log.info (fun log -> log "Connected. host=%s port=%d" host port) in
-          connection
+          let%lwt () = Log.info (fun log -> log "Connected.") in
+          Lwt.return connection
         with _ ->
-          let%lwt () = Log.debug (fun log -> log "Could not connect to host=%s port=%d, trying next..." host port) in
+          let%lwt () = Log.debug (fun log -> log "Could not connect, trying next...") in
           try_connect hosts
     in
 

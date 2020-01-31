@@ -1,0 +1,11 @@
+
+(library
+ (name Mqtt_client)
+ (public_name mqtt-client)
+ (wrapped true)
+ (preprocess (pps lwt_ppx))
+ (libraries lwt lwt.unix
+            logs logs.lwt
+            tls tls.lwt
+            ocplib-endian))
+

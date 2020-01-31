@@ -1,0 +1,26 @@
+lib: [
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/META"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Mqtt.a"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Mqtt.cma"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Mqtt.cmxa"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Mqtt.cmxs"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Read_buffer.cmi"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Read_buffer.cmt"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Read_buffer.cmti"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Read_buffer.cmx"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Read_buffer.ml"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/Read_buffer.mli"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/dune-package"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/mqtt.cmi"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/mqtt.cmt"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/mqtt.cmx"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/mqtt.ml"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/opam"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/subscriptions.cmi"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/subscriptions.cmt"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/subscriptions.cmx"
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/lib/mqtt/subscriptions.ml"
+]
+doc: [
+  "/Users/rizo/Areas/ODIS/Code/ocaml-mqtt/_esy/default/store/b/mqtt-890e2748/install/default/doc/mqtt/README.md"
+]

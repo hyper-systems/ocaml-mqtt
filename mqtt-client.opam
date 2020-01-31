@@ -1,0 +1,18 @@
+opam-version: "2.0"
+maintainer: "rizo@odis.io"
+authors: ["Rizo I. <rizo@odis.io>" "Josh Allmann <joshua.allmann@gmail.com>"]
+homepage: "https://github.com/odis-labs/ocaml-mqtt"
+synopsis: "MQTT client implementation for OCaml and ReasonML"
+license: "BSD-3-clause"
+bug-reports: "https://github.com/odis-labs/ocaml-mqtt/issues"
+dev-repo: "git://github.com/odis-labs/ocaml-mqtt"
+tags: ["telemetry" "mqtt" "network" "protocol"]
+depends: [
+  "ocplib-endian" {>= "0.6"}
+  "lwt"
+  "tls"
+  "dune" {build}
+]
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+]

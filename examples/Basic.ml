@@ -1,4 +1,4 @@
-module Mqtt_client = Mqtt.Client
+module C = Mqtt_client
 let (>>=) = Lwt.bind
 
 let host = "localhsot"
@@ -13,20 +13,20 @@ let sub_example () =
       Lwt_io.printlf "%s: %s" t p >>= fun () ->
       loop stream
   in
-  Lwt_io.printl "Starting subscriber..." >>= fun () ->
-  Mqtt_client.connect ~id:"client-1" ~port host >>= fun client ->
-  Mqtt_client.subscribe client [("topic-1", Mqtt.Atmost_once)] >>= fun () ->
-  let stream = Mqtt_client.messages client in
+  let%lwt () = Lwt_io.printl "Starting subscriber...";
+  let%lwt client = C.connect ~id:"client-1" ~port [host];
+  C.subscribe [("topic-1", C.Atmost_once)] client >>= fun () ->
+  let stream = C.messages client in
   loop stream
 
 
 let pub_example () =
   Lwt_io.printl "Starting publisher..." >>= fun () ->
-  Mqtt_client.connect ~id:"client-1" ~port host >>= fun client ->
+  C.connect ~id:"client-1" ~port [host] >>= fun client ->
   let rec loop () =
     Lwt_io.printl "Publishing..." >>= fun () ->
     Lwt_io.read_line Lwt_io.stdin >>= fun line ->
-    Mqtt_client.publish client ~qos:Mqtt.Atleast_once "topic-1" line >>= fun () ->
+    C.publish ~qos:C.Atleast_once ~topic:"topic-1" line client >>= fun () ->
     Lwt_io.printl "Published." >>= fun () ->
     loop ()
   in

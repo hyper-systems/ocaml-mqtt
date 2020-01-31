@@ -2,4 +2,4 @@
 (executable
   (name Basic)
   (modules Basic)
-  (libraries mqtt lwt))
+  (libraries mqtt-client lwt))

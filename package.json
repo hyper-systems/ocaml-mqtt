@@ -1,23 +1,25 @@
 {
-  "name": "mqtt",
+  "name": "mqtt-client",
   "version": "0.0.2",
   "description": "MQTT message parser in OCaml",
   "license": "BSD-3-clause",
   "esy": {
-    "build": "dune build"
+    "build": "dune build",
+    "buildEnv": {
+      "ODOC_SYNTAX": "re"
+    }
+  },
+  "devDependencies": {
+    "@opam/merlin": "*"
   },
   "dependencies": {
+    "ocaml": "4.6.x",
     "@opam/odoc": "*",
     "@opam/dune": "*",
-    "@opam/utop": "*",
-    "@reason-native/console": "*",
-    "ocaml": "4.6.x",
-    "@opam/merlin": "*",
     "@opam/ocplib-endian": ">=0.6",
-    "@opam/ounit": "*",
     "@opam/lwt": "*",
-    "@opam/tls": "*",
     "@opam/lwt_ppx": "*",
-    "@opam/logs": "*"
+    "@opam/logs": "*",
+    "@opam/tls": "*"
   }
 }

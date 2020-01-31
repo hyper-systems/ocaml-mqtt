@@ -10,6 +10,7 @@ tags: ["telemetry" "mqtt" "network" "protocol"]
 depends: [
   "ocplib-endian" {>= "0.6"}
   "lwt"
+  "lwt_ppx"
   "tls"
   "dune" {build}
 ]

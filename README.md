@@ -34,9 +34,9 @@ Here is a basic example of a subscriber:
 open Printf;
 
 let sub_example = () => {
-  let%lwt client = C.connect(~id="client-1", ~port, [host]);
-  let%lwt () = C.subscribe([("topic-1", C.Atmost_once)], client);
-  let stream = C.messages(client);
+  let%lwt client = Mqtt_client.connect(~id="client-1", ~port, [host]);
+  let%lwt () = Mqtt_client.subscribe([("topic-1", Mqtt_client.Atmost_once)], client);
+  let stream = Mqtt_client.messages(client);
   let rec loop = () => {
     let%lwt msg = Lwt_stream.get(stream);
     switch(msg) {

@@ -13,7 +13,7 @@
     "@opam/merlin": "*"
   },
   "dependencies": {
-    "ocaml": "4.6.x",
+    "ocaml": ">=4.6.0",
     "@opam/odoc": "*",
     "@opam/dune": "*",
     "@opam/ocplib-endian": ">=0.6",

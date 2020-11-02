@@ -157,7 +157,7 @@ let qos_of_bits = function
   | 0 -> Atmost_once
   | 1 -> Atleast_once
   | 2 -> Exactly_once
-  | _ -> raise (Invalid_argument "invalid qos number")
+  | b -> raise (Invalid_argument ("invalid qos number: " ^ string_of_int b))
 
 let bit_of_bool = function
   | true -> 1

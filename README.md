@@ -1,4 +1,4 @@
-# OCaml MQTT Clint
+# OCaml MQTT Client
 
 This library implements the client MQTT v3 protocol.
 

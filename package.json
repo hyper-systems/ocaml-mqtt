@@ -4,7 +4,7 @@
   "description": "MQTT message parser in OCaml",
   "license": "BSD-3-clause",
   "esy": {
-    "build": "dune build",
+    "build": "dune build -p mqtt-client",
     "buildEnv": {
       "ODOC_SYNTAX": "re"
     }
@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "ocaml": ">=4.6.0",
+    "@opam/cstruct": "^5.0.0",
+    "@opam/cstruct-sexp": "^5.0.0",
     "@opam/odoc": "*",
     "@opam/dune": "*",
     "@opam/ocplib-endian": ">=0.6",

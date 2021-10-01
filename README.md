@@ -2,8 +2,8 @@
 
 This library implements the client MQTT v3 protocol.
 
-* [API Documentation](https://odis-labs.github.io/ocaml-mqtt/mqtt-client/Mqtt_client)
-* [Issues](https://github.com/odis-labs/ocaml-mqtt/issues)
+* [API Documentation](https://hyper-systems.github.io/ocaml-mqtt/mqtt-client/Mqtt_client)
+* [Issues](https://github.com/hyper-systems/ocaml-mqtt/issues)
 
 ## Quickstart
 

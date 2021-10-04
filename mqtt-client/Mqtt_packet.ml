@@ -2,7 +2,7 @@ module BE = EndianBytes.BigEndian
 
 open Mqtt_core
 
-let msgid = ref 0
+let msgid = ref 1
 
 let gen_id () =
   let () = incr msgid in

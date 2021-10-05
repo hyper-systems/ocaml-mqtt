@@ -2,12 +2,12 @@ module BE = EndianBytes.BigEndian
 
 open Mqtt_core
 
-let msgid = ref 1
+let _msgid = ref 1
 
 let gen_id () =
-  let () = incr msgid in
-  if !msgid >= 0xFFFF then msgid := 1;
-  !msgid
+  let () = incr _msgid in
+  if !_msgid >= 0xFFFF then _msgid := 1;
+  !_msgid
 
 
 let int16be n =

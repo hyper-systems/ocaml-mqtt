@@ -321,7 +321,7 @@ module Client = struct
   let publish ?(dup = false) ?(qos = Atleast_once) ?(retain = false) ~topic
       payload client =
     let _, oc = client.cxn in
-    let id = !Mqtt_packet.msgid in
+    let id = Mqtt_packet.gen_id () in
     let cond = Lwt_condition.create () in
     let expected_ack_pkt = Mqtt_packet.puback id in
     Hashtbl.add client.inflight id (cond, expected_ack_pkt);
@@ -338,7 +338,7 @@ module Client = struct
       Mqtt_packet.Encoder.subscribe ~dup ~qos ~retain ?id topics
     in
     let qos_list = List.map (fun (_, q) -> q) topics in
-    let pkt_id = !Mqtt_packet.msgid in
+    let pkt_id = Mqtt_packet.gen_id () in
     let cond = Lwt_condition.create () in
     Hashtbl.add client.inflight pkt_id (cond, Suback (pkt_id, qos_list));
     wrap_catch client (fun () ->

@@ -1,4 +1,0 @@
-S lib test example
-PKG lwt lwt.unix oUnit ocplib-endian
-EXT lwt
-B _build/lib _build/test _build/example

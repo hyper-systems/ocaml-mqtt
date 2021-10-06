@@ -2,7 +2,7 @@ module BE = EndianBytes.BigEndian
 
 open Mqtt_core
 
-let _msgid = ref 1
+let _msgid = ref 0
 
 let gen_id () =
   let () = incr _msgid in
@@ -217,7 +217,7 @@ module Encoder = struct
     Bytes.to_string hdr ^ len
 
 
-  let unsubscribe ~dup ~qos ~retain ?(id = gen_id ()) topics =
+  let unsubscribe ~dup ~qos ~retain ~id topics =
     let accum acc i = acc + 2 + String.length i in
     let tl = List.fold_left accum 2 topics in
     (* +2 for msgid *)
@@ -280,7 +280,7 @@ module Encoder = struct
 
   let disconnect () = simple_pkt Disconnect_pkt
 
-  let subscribe ~dup ~qos ~retain ?(id = gen_id ()) topics =
+  let subscribe ~dup ~qos ~retain ~id topics =
     let accum acc (i, _) = acc + 3 + String.length i in
     let tl = List.fold_left accum 0 topics in
     let tl = tl + 2 in

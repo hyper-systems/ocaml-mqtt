@@ -54,6 +54,12 @@ module Client = struct
     should_stop_reader : unit Lwt_condition.t;
   }
 
+  let pp_inflight out inflight =
+    Fmt.pf out "(inflight";
+    Hashtbl.iter (fun msg_id _ -> Fmt.pf out " %d" msg_id) inflight;
+    Fmt.pf out ")"
+
+
   let default_error_fn _client exn =
     let%lwt () =
       Log.err (fun log -> log "Mqtt_client: unhandled client error")
@@ -275,7 +281,7 @@ module Client = struct
     | _, Connack { connection_status = Accepted; session_present } ->
       let%lwt () =
         Log.info (fun log ->
-            log "Connected to borker... session_present=%b" session_present)
+            log "Connected to borker; session_present=%b" session_present)
       in
 
       let pinger = Lwt.return_unit in
@@ -331,19 +337,22 @@ module Client = struct
     Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond
 
 
-  let subscribe ?(dup = false) ?(qos = Atleast_once) ?(retain = false) ?id
-      topics client =
+  let subscribe ?(dup = false) ?(qos = Atleast_once) ?(retain = false) topics
+      client =
     let _, oc = client.cxn in
+    let pkt_id = Mqtt_packet.gen_id () in
     let subscribe_packet =
-      Mqtt_packet.Encoder.subscribe ~dup ~qos ~retain ?id topics
+      Mqtt_packet.Encoder.subscribe ~dup ~qos ~retain ~id:pkt_id topics
     in
     let qos_list = List.map (fun (_, q) -> q) topics in
-    let pkt_id = Mqtt_packet.gen_id () in
     let cond = Lwt_condition.create () in
     Hashtbl.add client.inflight pkt_id (cond, Suback (pkt_id, qos_list));
     wrap_catch client (fun () ->
-        Lwt_io.write oc subscribe_packet >>= fun () ->
-        Lwt_condition.wait cond >>= fun _ -> Lwt.return_unit)
+        let%lwt () = Lwt_io.write oc subscribe_packet in
+        let%lwt () = Lwt_condition.wait cond in
+        let topics = List.map fst topics in
+        Log.info (fun log ->
+            log "Subscribed to %a." Fmt.Dump.(list string) topics))
 
 
   let messages client = client.stream

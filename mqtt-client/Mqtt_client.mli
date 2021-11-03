@@ -25,6 +25,8 @@ val connect :
   ?clean_session:bool ->
   ?keep_alive:int ->
   ?ping_timeout:float ->
+  ?on_message:(topic:string -> string -> unit Lwt.t) ->
+  ?on_disconnect:(t -> unit Lwt.t) ->
   ?on_error:(t -> exn -> unit Lwt.t) ->
   ?port:int ->
   string list ->
@@ -41,8 +43,14 @@ val connect :
     {i Note:} Reconnection logic is not implemented currently.
 
     {[
-      let broker_hosts = ["host-1", "host-2"];
-      let%lwt client = Mqtt_client.connect(~id="my-client", ~port=1883, broker_hosts);
+      let broker_hosts = ["host-1", "host-2"] in
+
+      let on_message ~topic payload =
+        Lwt.printlf "topic=%S payload=%S" topic payload
+      in
+
+      Mqtt_client.connect ~id:"my-client" ~port:1883 ~on_message broker_hosts
+      |> Lwt_main.run
     ]} *)
 
 val disconnect : t -> unit Lwt.t
@@ -76,21 +84,8 @@ val subscribe :
 
     {[
       let topics = [
-        ("news/fashion", Mqtt_client.Atmost_once),
-        ("news/science", Mqtt_client.Atleast_once)
-      ];
-      let%lwt () = Mqtt_client.subscribe(topics, client);
-    ]} *)
-
-val messages : t -> (string * string) Lwt_stream.t
-(** A stream of messages for all subscriptions.
-
-    The stream contains pairs with a topic and the message payload.
-
-    {[
-      let messages = Mqtt_client.messages(client);
-      let%lwt () = Lwt_stream.iter(
-        (topic, payload) => print_endline(payload),
-        messages
-      );
+        ("news/fashion", Mqtt_client.Atmost_once);
+        ("news/science", Mqtt_client.Atleast_once);
+      ] in
+      Mqtt_client.subscribe topics client
     ]} *)

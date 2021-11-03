@@ -44,11 +44,11 @@ module Client = struct
 
   type t = {
     cxn : connection;
-    stream : (string * string) Lwt_stream.t;
-    push : (string * string) option -> unit;
     inflight : (int, unit Lwt_condition.t * Mqtt_packet.t) Hashtbl.t;
     mutable reader : unit Lwt.t;
     mutable pinger : unit Lwt.t;
+    on_message : topic:string -> string -> unit Lwt.t;
+    on_disconnect : t -> unit Lwt.t;
     on_error : t -> exn -> unit Lwt.t;
     reset_ping_timer : unit Lwt_mvar.t;
     should_stop_reader : unit Lwt_condition.t;
@@ -60,11 +60,19 @@ module Client = struct
     Fmt.pf out ")"
 
 
-  let default_error_fn _client exn =
+  let default_on_error _client exn =
     let%lwt () =
       Log.err (fun log -> log "Mqtt_client: unhandled client error")
     in
     Lwt.fail exn
+
+  
+  let default_on_message ~topic:_ _ =
+    Lwt.return_unit
+
+
+  let default_on_disconnect _ =
+    Lwt.return_unit
 
 
   let read_packets client () =
@@ -82,10 +90,8 @@ module Client = struct
       with Not_found -> Lwt.fail (Failure (fmt "ack for id=%d not found" id))
     in
 
-    let push topic payload = Lwt.return (client.push (Some (topic, payload))) in
-
     let _push_id id pkt_data topic payload =
-      ack_inflight id pkt_data >>= fun () -> push topic payload
+      ack_inflight id pkt_data >>= fun () -> client.on_message ~topic payload
     in
 
     let rec loop () =
@@ -94,7 +100,7 @@ module Client = struct
         match packet with
         (* Publish with QoS 0: push *)
         | Publish (None, topic, payload) when qos = Atmost_once ->
-          push topic payload
+          client.on_message ~topic payload
         (* Publish with QoS 0 and packet identifier: error *)
         | Publish (Some _id, _topic, _payload) when qos = Atmost_once ->
           Lwt.fail
@@ -104,7 +110,7 @@ module Client = struct
         | Publish (Some id, topic, payload) when qos = Atleast_once ->
           (* - Push the message to the consumer queue.
              - Send back the PUBACK packet. *)
-          push topic payload >>= fun () ->
+          client.on_message ~topic payload >>= fun () ->
           let puback = Mqtt_packet.Encoder.puback id in
           Lwt_io.write out_chan puback >>= fun () -> Lwt.return_unit
         | Publish (None, _topic, _payload) when qos = Atleast_once ->
@@ -149,14 +155,14 @@ module Client = struct
     let%lwt () = Log.info (fun log -> log "Disconnecting client...") in
     let _, oc = client.cxn in
 
-    (* Notify the subscriber about termination. *)
-    client.push None;
-
     (* Stop reading packets. *)
     Lwt_condition.signal client.should_stop_reader ();
 
     (* Send the disconnect packet to server. *)
     let%lwt () = Lwt_io.write oc (Mqtt_packet.Encoder.disconnect ()) in
+
+    let%lwt () = client.on_disconnect client in
+
     Log.info (fun log -> log "Did disconnect client...")
 
 
@@ -230,7 +236,9 @@ module Client = struct
 
   let connect ?(id = "OCamlMQTT") ?tls_ca ?credentials ?will
       ?(clean_session = true) ?(keep_alive = 10) ?(ping_timeout = 5.0)
-      ?(on_error = default_error_fn) ?(port = 1883) hosts =
+      ?(on_message = default_on_message)
+      ?(on_disconnect = default_on_disconnect)
+      ?(on_error = default_on_error) ?(port = 1883) hosts =
     let flags = if clean_session then [ Mqtt_packet.Clean_session ] else [] in
     let opt =
       Mqtt_packet.
@@ -274,7 +282,6 @@ module Client = struct
         ~keep_alive:opt.cxn_data.keep_alive opt.cxn_data.clientid
     in
     Lwt_io.write oc connect_packet >>= fun () ->
-    let stream, push = Lwt_stream.create () in
     let inflight = Hashtbl.create 100 in
 
     match%lwt read_packet ic with
@@ -292,13 +299,13 @@ module Client = struct
       let client =
         {
           cxn = connection;
-          stream;
-          push;
           inflight;
           reader;
           pinger;
           reset_ping_timer;
           should_stop_reader = Lwt_condition.create ();
+          on_message;
+          on_disconnect;
           on_error;
         }
       in
@@ -353,8 +360,5 @@ module Client = struct
         let topics = List.map fst topics in
         Log.info (fun log ->
             log "Subscribed to %a." Fmt.Dump.(list string) topics))
-
-
-  let messages client = client.stream
 end
 include Client

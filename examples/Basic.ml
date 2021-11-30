@@ -4,20 +4,12 @@ let host = "127.0.0.1"
 let port = 1883
 
 let sub_example () =
-  let rec loop stream =
-    let%lwt msg = Lwt_stream.get stream in
-    match msg with
-    | None ->
-      Lwt_io.printl "STREAM FINISHED"
-    | Some (t, p) ->
-      let%lwt () = Lwt_io.printlf "%s: %s" t p in
-      loop stream
+  let on_message ~topic payload =  
+    Lwt_io.printlf "%s: %s" topic payload
   in
   let%lwt () = Lwt_io.printl "Starting subscriber..." in
-  let%lwt client = C.connect ~id:"client-1" ~port [host] in
-  let%lwt () = C.subscribe [("topic-1", C.Atmost_once)] client in
-  let stream = C.messages client in
-  loop stream
+  let%lwt client = C.connect ~on_message ~id:"client-1" ~port [host] in
+  C.subscribe [("topic-1", C.Atmost_once)] client
 
 
 let pub_example () =

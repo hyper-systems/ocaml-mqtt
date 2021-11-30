@@ -54,7 +54,7 @@ module Client = struct
     should_stop_reader : unit Lwt_condition.t;
   }
 
-  let pp_inflight out inflight =
+  let _pp_inflight out inflight =
     Fmt.pf out "(inflight";
     Hashtbl.iter (fun msg_id _ -> Fmt.pf out " %d" msg_id) inflight;
     Fmt.pf out ")"
@@ -182,33 +182,28 @@ module Client = struct
     (* 10% leeway *)
     let rec loop () =
       (* Wait for keep alive interval. *)
-      let%lwt () =
-        Log.debug (fun log -> log "Waiting for keep_alive interval...")
-      in
       let%lwt () = Lwt_unix.sleep keep_alive in
 
       (* Send PINGREQ. *)
       let pingreq_packet = Mqtt_packet.Encoder.pingreq () in
       let%lwt () = Lwt_io.write output pingreq_packet in
-      let%lwt () = Log.debug (fun log -> log "Sent ping.") in
 
       let timeout =
         let%lwt () = Lwt_unix.sleep ping_timeout in
-        let%lwt () = Log.debug (fun log -> log "Ping request timed out. ") in
+        let%lwt () = Log.warn (fun log -> log "Ping request timed out.") in
         let%lwt () = disconnect client in
         client.on_error client Ping_timeout
       in
 
       let reset =
         let%lwt () = Lwt_mvar.take client.reset_ping_timer in
-        let%lwt () = Log.debug (fun log -> log "Cancelling timeout... ") in
         Lwt.cancel timeout;
         loop ()
       in
       Lwt.catch
         (fun () -> Lwt.choose [ timeout; reset ])
         (function
-          | Lwt.Canceled -> Log.debug (fun log -> log "Did cancel timeout. ")
+          | Lwt.Canceled -> Lwt.return_unit
           | exn -> Lwt.fail exn)
     in
     loop ()

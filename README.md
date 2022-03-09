@@ -5,6 +5,8 @@ This library implements the client MQTT v3 protocol.
 * [API Documentation](https://hyper-systems.github.io/ocaml-mqtt/mqtt-client/Mqtt_client)
 * [Issues](https://github.com/hyper-systems/ocaml-mqtt/issues)
 
+Originally forked from https://github.com/j0sh/ocaml-mqtt.
+
 ## Quickstart
 
 To install ocaml-mqtt in an esy project, add the following dependency to your package.json file:

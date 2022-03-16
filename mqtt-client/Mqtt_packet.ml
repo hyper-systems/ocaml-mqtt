@@ -188,6 +188,10 @@ let opt_with s n = function
 
 let puback id = Puback id
 
+let pubrec id = Pubrec id
+
+let pubcomp id = Pubcomp id
+
 module Encoder = struct
   let encode_length len =
     let rec loop ll digits =

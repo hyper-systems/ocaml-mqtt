@@ -337,7 +337,7 @@ module Client = struct
       Lwt_io.write oc pkt_data
     | Atleast_once
     | Exactly_once ->
-        let id = Mqtt_packet.gen_id () in
+      let id = Mqtt_packet.gen_id () in
       let cond = Lwt_condition.create () in
       let expected_ack_pkt = Mqtt_packet.puback id in
       Hashtbl.add client.inflight id (cond, expected_ack_pkt);

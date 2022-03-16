@@ -329,14 +329,22 @@ module Client = struct
   let publish ?(dup = false) ?(qos = Atleast_once) ?(retain = false) ~topic
       payload client =
     let _, oc = client.cxn in
-    let id = Mqtt_packet.gen_id () in
-    let cond = Lwt_condition.create () in
-    let expected_ack_pkt = Mqtt_packet.puback id in
-    Hashtbl.add client.inflight id (cond, expected_ack_pkt);
-    let pkt_data =
-      Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id ~topic payload
-    in
-    Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond
+    match qos with
+    | Atmost_once ->
+      let pkt_data =
+        Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id:0 ~topic payload
+      in
+      Lwt_io.write oc pkt_data
+    | Atleast_once
+    | Exactly_once ->
+        let id = Mqtt_packet.gen_id () in
+      let cond = Lwt_condition.create () in
+      let expected_ack_pkt = Mqtt_packet.puback id in
+      Hashtbl.add client.inflight id (cond, expected_ack_pkt);
+      let pkt_data =
+        Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id ~topic payload
+      in
+      Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond
 
 
   let subscribe ?(dup = false) ?(qos = Atleast_once) ?(retain = false) topics

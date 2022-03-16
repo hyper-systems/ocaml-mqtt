@@ -6,4 +6,4 @@ _esy
 setup.data
 setup.log
 !.gitignore
-mqtt.install
+*.install

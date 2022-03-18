@@ -335,14 +335,28 @@ module Client = struct
         Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id:0 ~topic payload
       in
       Lwt_io.write oc pkt_data
-    | Atleast_once
-    | Exactly_once ->
+    | Atleast_once ->
       let id = Mqtt_packet.gen_id () in
       let cond = Lwt_condition.create () in
       let expected_ack_pkt = Mqtt_packet.puback id in
       Hashtbl.add client.inflight id (cond, expected_ack_pkt);
       let pkt_data =
         Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id ~topic payload
+      in
+      Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond
+    | Exactly_once ->
+      let id = Mqtt_packet.gen_id () in
+      let cond = Lwt_condition.create () in
+      let expected_ack_pkt = Mqtt_packet.pubrec id in
+      Hashtbl.add client.inflight id (cond, expected_ack_pkt);
+      let pkt_data =
+        Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id ~topic payload
+      in
+      Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond >>= fun () ->
+      let expected_ack_pkt = Mqtt_packet.pubcomp id in
+      Hashtbl.add client.inflight id (cond, expected_ack_pkt);
+      let pkt_data =
+        Mqtt_packet.Encoder.pubrel ~dup ~qos ~retain id
       in
       Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond
 

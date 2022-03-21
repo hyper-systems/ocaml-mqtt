@@ -1,11 +1,9 @@
-
 open Mqtt_client.Read_buffer
-
 
 let test_create _ =
   let rb = create () in
   assert_equal 0 rb.pos;
-  assert_equal (Bytes.empty) rb.buf
+  assert_equal Bytes.empty rb.buf
 
 let test_add _ =
   let rb = create () in
@@ -90,18 +88,18 @@ let test_readstr _ =
 let test_readall _ =
   let rb = make "\001\002\003\004\005" in
   let res = read_all rb read_uint8 in
-  assert_equal res [5;4;3;2;1];
+  assert_equal res [ 5; 4; 3; 2; 1 ];
   assert_equal 0 (len rb)
 
-let tests = [
-  "create">::test_create;
-  "add">::test_add;
-  "make">::test_make;
-  "rb_len">::test_len;
-  "read">::test_read;
-  "read_uint8">::test_uint8;
-  "read_int16">::test_int16;
-  "read_string">::test_readstr;
-  "read_all">::test_readall;
-]
-
+let tests =
+  [
+    "create" >:: test_create;
+    "add" >:: test_add;
+    "make" >:: test_make;
+    "rb_len" >:: test_len;
+    "read" >:: test_read;
+    "read_uint8" >:: test_uint8;
+    "read_int16" >:: test_int16;
+    "read_string" >:: test_readstr;
+    "read_all" >:: test_readall;
+  ]

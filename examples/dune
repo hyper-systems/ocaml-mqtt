@@ -1,6 +1,6 @@
-
 (executable
-  (name Basic)
-  (modules Basic)
-  (preprocess (pps lwt_ppx))
-  (libraries mqtt-client lwt))
+ (name Basic)
+ (modules Basic)
+ (preprocess
+  (pps lwt_ppx))
+ (libraries mqtt-client lwt))

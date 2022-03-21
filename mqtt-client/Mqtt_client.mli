@@ -43,7 +43,7 @@ val connect :
     {i Note:} Reconnection logic is not implemented currently.
 
     {[
-      let broker_hosts = ["host-1", "host-2"] in
+      let broker_hosts = [ ("host-1", "host-2") ] in
 
       let on_message ~topic payload =
         Lwt.printlf "topic=%S payload=%S" topic payload
@@ -83,9 +83,11 @@ val subscribe :
 (** Subscribes the client to a list of topics.
 
     {[
-      let topics = [
-        ("news/fashion", Mqtt_client.Atmost_once);
-        ("news/science", Mqtt_client.Atleast_once);
-      ] in
+      let topics =
+        [
+          ("news/fashion", Mqtt_client.Atmost_once);
+          ("news/science", Mqtt_client.Atleast_once);
+        ]
+      in
       Mqtt_client.subscribe topics client
     ]} *)

@@ -18,7 +18,6 @@ let decode_length inch =
   in
   loop 0 1
 
-
 let read_packet inch =
   Lwt_io.read_char inch >>= fun header_byte ->
   let msgid, opts =
@@ -37,9 +36,9 @@ let read_packet inch =
   in
   Lwt.return (opts, pkt)
 
-
 module Client = struct
   let src = Logs.Src.create "mqtt.client" ~doc:"MQTT Client module"
+
   module Log = (val Logs_lwt.src_log src : Logs_lwt.LOG)
 
   type t = {
@@ -59,21 +58,14 @@ module Client = struct
     Hashtbl.iter (fun msg_id _ -> Fmt.pf out " %d" msg_id) inflight;
     Fmt.pf out ")"
 
-
   let default_on_error _client exn =
     let%lwt () =
       Log.err (fun log -> log "Mqtt_client: unhandled client error")
     in
     Lwt.fail exn
 
-  
-  let default_on_message ~topic:_ _ =
-    Lwt.return_unit
-
-
-  let default_on_disconnect _ =
-    Lwt.return_unit
-
+  let default_on_message ~topic:_ _ = Lwt.return_unit
+  let default_on_disconnect _ = Lwt.return_unit
 
   let read_packets client () =
     let in_chan, out_chan = client.cxn in
@@ -81,11 +73,10 @@ module Client = struct
     let ack_inflight id pkt =
       try
         let cond, expected_ack_pkt = Hashtbl.find client.inflight id in
-        if pkt = expected_ack_pkt then begin
+        if pkt = expected_ack_pkt then (
           Hashtbl.remove client.inflight id;
           Lwt_condition.signal cond ();
-          Lwt.return_unit
-        end
+          Lwt.return_unit)
         else Lwt.fail (Failure "unexpected packet in ack")
       with Not_found -> Lwt.fail (Failure (fmt "ack for id=%d not found" id))
     in
@@ -96,36 +87,36 @@ module Client = struct
 
     let rec loop () =
       read_packet in_chan >>= fun ((_dup, qos, _retain), packet) ->
-      begin
-        match packet with
-        (* Publish with QoS 0: push *)
-        | Publish (None, topic, payload) when qos = Atmost_once ->
+      (match packet with
+      (* Publish with QoS 0: push *)
+      | Publish (None, topic, payload) when qos = Atmost_once ->
           client.on_message ~topic payload
-        (* Publish with QoS 0 and packet identifier: error *)
-        | Publish (Some _id, _topic, _payload) when qos = Atmost_once ->
+      (* Publish with QoS 0 and packet identifier: error *)
+      | Publish (Some _id, _topic, _payload) when qos = Atmost_once ->
           Lwt.fail
             (Failure
                "protocol violation: publish packet with qos 0 must not have id")
-        (* Publish with QoS 1 *)
-        | Publish (Some id, topic, payload) when qos = Atleast_once ->
+      (* Publish with QoS 1 *)
+      | Publish (Some id, topic, payload) when qos = Atleast_once ->
           (* - Push the message to the consumer queue.
              - Send back the PUBACK packet. *)
           client.on_message ~topic payload >>= fun () ->
           let puback = Mqtt_packet.Encoder.puback id in
           Lwt_io.write out_chan puback >>= fun () -> Lwt.return_unit
-        | Publish (None, _topic, _payload) when qos = Atleast_once ->
+      | Publish (None, _topic, _payload) when qos = Atleast_once ->
           Lwt.fail
             (Failure
                "protocol violation: publish packet with qos > 0 must have id")
-        | Publish _ ->
+      | Publish _ ->
           Lwt.fail (Failure "not supported publish packet (probably qos 2)")
-        | Suback (id, _)
-        | Unsuback id
-        | Puback id
-        | Pubrec id
-        | Pubrel id
-        | Pubcomp id -> ack_inflight id packet
-        | Pingresp ->
+      | Suback (id, _)
+      | Unsuback id
+      | Puback id
+      | Pubrec id
+      | Pubrel id
+      | Pubcomp id ->
+          ack_inflight id packet
+      | Pingresp ->
           let%lwt () =
             Log.debug (fun log ->
                 if not (Lwt_mvar.is_empty client.reset_ping_timer) then
@@ -134,8 +125,7 @@ module Client = struct
           in
 
           Lwt_mvar.put client.reset_ping_timer ()
-        | _ -> Lwt.fail (Failure "unknown packet from server")
-      end
+      | _ -> Lwt.fail (Failure "unknown packet from server"))
       >>= fun () -> loop ()
     in
     let%lwt () = Log.debug (fun log -> log "Starting reader loop...") in
@@ -145,7 +135,6 @@ module Client = struct
           Log.info (fun log -> log "Stopping reader loop...") );
         loop ();
       ]
-
 
   let wrap_catch client f = Lwt.catch f (client.on_error client)
 
@@ -165,7 +154,6 @@ module Client = struct
 
     Log.info (fun log -> log "Did disconnect client...")
 
-
   let shutdown client =
     let%lwt () = Log.debug (fun log -> log "Shutting down the connection...") in
     let ic, oc = client.cxn in
@@ -173,7 +161,6 @@ module Client = struct
     let%lwt () = Lwt_io.close ic in
     let%lwt () = Lwt_io.close oc in
     Log.debug (fun log -> log "Did shut down the connection.")
-
 
   let ping_timer client ?(ping_timeout = 5.0) ~keep_alive () =
     let%lwt () = Log.debug (fun log -> log "Starting ping timer...") in
@@ -202,12 +189,9 @@ module Client = struct
       in
       Lwt.catch
         (fun () -> Lwt.choose [ timeout; reset ])
-        (function
-          | Lwt.Canceled -> Lwt.return_unit
-          | exn -> Lwt.fail exn)
+        (function Lwt.Canceled -> Lwt.return_unit | exn -> Lwt.fail exn)
     in
     loop ()
-
 
   let () = Printexc.record_backtrace true
 
@@ -215,25 +199,24 @@ module Client = struct
     let%lwt authenticator = X509_lwt.authenticator (`Ca_file ca_file) in
     Tls_lwt.connect authenticator (host, port)
 
-
   exception Connection_error of string
 
   let open_tcp_connection host port =
     Lwt_unix.getaddrinfo host (string_of_int port) [] >>= fun addresses ->
     match addresses with
     | address :: _ ->
-      let sockaddr = Lwt_unix.(address.ai_addr) in
-      Lwt_io.open_connection sockaddr
+        let sockaddr = Lwt_unix.(address.ai_addr) in
+        Lwt_io.open_connection sockaddr
     | _ ->
-      Lwt.fail
-        (Connection_error ("Error: mqtt: could not get address info for " ^ host))
-
+        Lwt.fail
+          (Connection_error
+             ("Error: mqtt: could not get address info for " ^ host))
 
   let connect ?(id = "OCamlMQTT") ?tls_ca ?credentials ?will
       ?(clean_session = true) ?(keep_alive = 10) ?(ping_timeout = 5.0)
       ?(on_message = default_on_message)
-      ?(on_disconnect = default_on_disconnect)
-      ?(on_error = default_on_error) ?(port = 1883) hosts =
+      ?(on_disconnect = default_on_disconnect) ?(on_error = default_on_error)
+      ?(port = 1883) hosts =
     let flags = if clean_session then [ Mqtt_packet.Clean_session ] else [] in
     let opt =
       Mqtt_packet.
@@ -246,25 +229,26 @@ module Client = struct
     let rec try_connect hosts =
       match hosts with
       | [] ->
-        Lwt.fail
-          (Connection_error "Could not connect to any of the provided hosts")
+          Lwt.fail
+            (Connection_error "Could not connect to any of the provided hosts")
       | host :: hosts -> (
-        try%lwt
-          let%lwt () =
-            Log.info (fun log -> log "Connecting... host=%s port=%d" host port)
-          in
-          let%lwt connection =
-            match tls_ca with
-            | Some ca_file -> open_tls_connection ~ca_file host port
-            | None -> open_tcp_connection host port
-          in
-          let%lwt () = Log.info (fun log -> log "Connected.") in
-          Lwt.return connection
-        with _ ->
-          let%lwt () =
-            Log.debug (fun log -> log "Could not connect, trying next...")
-          in
-          try_connect hosts)
+          try%lwt
+            let%lwt () =
+              Log.info (fun log ->
+                  log "Connecting... host=%s port=%d" host port)
+            in
+            let%lwt connection =
+              match tls_ca with
+              | Some ca_file -> open_tls_connection ~ca_file host port
+              | None -> open_tcp_connection host port
+            in
+            let%lwt () = Log.info (fun log -> log "Connected.") in
+            Lwt.return connection
+          with _ ->
+            let%lwt () =
+              Log.debug (fun log -> log "Could not connect, trying next...")
+            in
+            try_connect hosts)
     in
 
     try_connect hosts >>= fun ((ic, oc) as connection) ->
@@ -281,85 +265,82 @@ module Client = struct
 
     match%lwt read_packet ic with
     | _, Connack { connection_status = Accepted; session_present } ->
-      let%lwt () =
-        Log.info (fun log ->
-            log "Connected to borker; session_present=%b" session_present)
-      in
+        let%lwt () =
+          Log.info (fun log ->
+              log "Connected to borker; session_present=%b" session_present)
+        in
 
-      let pinger = Lwt.return_unit in
-      let reader = Lwt.return_unit in
+        let pinger = Lwt.return_unit in
+        let reader = Lwt.return_unit in
 
-      let reset_ping_timer = Lwt_mvar.create_empty () in
+        let reset_ping_timer = Lwt_mvar.create_empty () in
 
-      let client =
-        {
-          cxn = connection;
-          inflight;
-          reader;
-          pinger;
-          reset_ping_timer;
-          should_stop_reader = Lwt_condition.create ();
-          on_message;
-          on_disconnect;
-          on_error;
-        }
-      in
+        let client =
+          {
+            cxn = connection;
+            inflight;
+            reader;
+            pinger;
+            reset_ping_timer;
+            should_stop_reader = Lwt_condition.create ();
+            on_message;
+            on_disconnect;
+            on_error;
+          }
+        in
 
-      let pinger =
-        wrap_catch client
-        @@ ping_timer client ~ping_timeout:opt.ping_timeout
-             ~keep_alive:opt.cxn_data.keep_alive
-      in
-      let reader = wrap_catch client @@ read_packets client in
+        let pinger =
+          wrap_catch client
+          @@ ping_timer client ~ping_timeout:opt.ping_timeout
+               ~keep_alive:opt.cxn_data.keep_alive
+        in
+        let reader = wrap_catch client @@ read_packets client in
 
-      Lwt.async (fun () -> pinger <&> reader >>= fun () -> shutdown client);
+        Lwt.async (fun () -> pinger <&> reader >>= fun () -> shutdown client);
 
-      client.pinger <- pinger;
-      client.reader <- reader;
+        client.pinger <- pinger;
+        client.reader <- reader;
 
-      Lwt.return client
+        Lwt.return client
     | _, Connack pkt ->
-      Lwt.fail
-        (Connection_error
-           (Mqtt_packet.connection_status_to_string pkt.connection_status))
+        Lwt.fail
+          (Connection_error
+             (Mqtt_packet.connection_status_to_string pkt.connection_status))
     | _ ->
-      Lwt.fail (Connection_error "Invalid response from broker on connection")
-
+        Lwt.fail (Connection_error "Invalid response from broker on connection")
 
   let publish ?(dup = false) ?(qos = Atleast_once) ?(retain = false) ~topic
       payload client =
     let _, oc = client.cxn in
     match qos with
     | Atmost_once ->
-      let pkt_data =
-        Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id:0 ~topic payload
-      in
-      Lwt_io.write oc pkt_data
+        let pkt_data =
+          Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id:0 ~topic payload
+        in
+        Lwt_io.write oc pkt_data
     | Atleast_once ->
-      let id = Mqtt_packet.gen_id () in
-      let cond = Lwt_condition.create () in
-      let expected_ack_pkt = Mqtt_packet.puback id in
-      Hashtbl.add client.inflight id (cond, expected_ack_pkt);
-      let pkt_data =
-        Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id ~topic payload
-      in
-      Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond
+        let id = Mqtt_packet.gen_id () in
+        let cond = Lwt_condition.create () in
+        let expected_ack_pkt = Mqtt_packet.puback id in
+        Hashtbl.add client.inflight id (cond, expected_ack_pkt);
+        let pkt_data =
+          Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id ~topic payload
+        in
+        Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond
     | Exactly_once ->
-      let id = Mqtt_packet.gen_id () in
-      let cond = Lwt_condition.create () in
-      let expected_ack_pkt = Mqtt_packet.pubrec id in
-      Hashtbl.add client.inflight id (cond, expected_ack_pkt);
-      let pkt_data =
-        Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id ~topic payload
-      in
-      Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond >>= fun () ->
-      let expected_ack_pkt = Mqtt_packet.pubcomp id in
-      Hashtbl.add client.inflight id (cond, expected_ack_pkt);
-      let pkt_data =
-        Mqtt_packet.Encoder.pubrel ~dup ~qos ~retain id
-      in
-      Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond
-
+        let id = Mqtt_packet.gen_id () in
+        let cond = Lwt_condition.create () in
+        let expected_ack_pkt = Mqtt_packet.pubrec id in
+        Hashtbl.add client.inflight id (cond, expected_ack_pkt);
+        let pkt_data =
+          Mqtt_packet.Encoder.publish ~dup ~qos ~retain ~id ~topic payload
+        in
+        Lwt_io.write oc pkt_data >>= fun () ->
+        Lwt_condition.wait cond >>= fun () ->
+        let expected_ack_pkt = Mqtt_packet.pubcomp id in
+        Hashtbl.add client.inflight id (cond, expected_ack_pkt);
+        let pkt_data = Mqtt_packet.Encoder.pubrel ~dup ~qos ~retain id in
+        Lwt_io.write oc pkt_data >>= fun () -> Lwt_condition.wait cond
 
   let subscribe ?(dup = false) ?(qos = Atleast_once) ?(retain = false) topics
       client =
@@ -378,4 +359,5 @@ module Client = struct
         Log.info (fun log ->
             log "Subscribed to %a." Fmt.Dump.(list string) topics))
 end
+
 include Client

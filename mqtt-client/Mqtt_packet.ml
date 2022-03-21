@@ -1,5 +1,4 @@
 module BE = EndianBytes.BigEndian
-
 open Mqtt_core
 
 let _msgid = ref 0
@@ -9,18 +8,15 @@ let gen_id () =
   if !_msgid >= 0xFFFF then _msgid := 1;
   !_msgid
 
-
 let int16be n =
   let s = Bytes.create 2 in
   BE.set_int16 s 0 n;
   s
 
-
 let int8be n =
   let s = Bytes.create 1 in
   BE.set_int8 s 0 n;
   s
-
 
 type messages =
   | Connect_pkt
@@ -66,7 +62,6 @@ let connection_status_to_string = function
   | Bad_username_or_password -> "Bad_username_or_password"
   | Not_authorized -> "Not_authorized"
 
-
 let connection_status_to_int = function
   | Accepted -> 0
   | Unacceptable_protocol_version -> 1
@@ -74,7 +69,6 @@ let connection_status_to_int = function
   | Server_unavailable -> 3
   | Bad_username_or_password -> 4
   | Not_authorized -> 5
-
 
 let connection_status_of_int = function
   | 0 -> Accepted
@@ -84,7 +78,6 @@ let connection_status_of_int = function
   | 4 -> Bad_username_or_password
   | 5 -> Not_authorized
   | _ -> raise (Invalid_argument "Invalid connection status code")
-
 
 type t =
   | Connect of cxn_data
@@ -120,7 +113,6 @@ let bits_of_message = function
   | Pingresp_pkt -> 13
   | Disconnect_pkt -> 14
 
-
 let message_of_bits = function
   | 1 -> Connect_pkt
   | 2 -> Connack_pkt
@@ -138,12 +130,10 @@ let message_of_bits = function
   | 14 -> Disconnect_pkt
   | _ -> raise (Invalid_argument "invalid bits in message")
 
-
 let bits_of_qos = function
   | Atmost_once -> 0
   | Atleast_once -> 1
   | Exactly_once -> 2
-
 
 let qos_of_bits = function
   | 0 -> Atmost_once
@@ -151,19 +141,14 @@ let qos_of_bits = function
   | 2 -> Exactly_once
   | b -> raise (Invalid_argument ("invalid qos number: " ^ string_of_int b))
 
-
-let bit_of_bool = function
-  | true -> 1
-  | false -> 0
-
+let bit_of_bool = function true -> 1 | false -> 0
 
 let bool_of_bit = function
   | 1 -> true
   | 0 -> false
   | n ->
-    raise
-      (Invalid_argument ("expected zero or one, but got " ^ string_of_int n))
-
+      raise
+        (Invalid_argument ("expected zero or one, but got " ^ string_of_int n))
 
 let trunc str =
   (* truncate leading zeroes *)
@@ -174,22 +159,14 @@ let trunc str =
   let leading = loop 0 in
   if leading = len then "\000" else String.sub str leading (len - leading)
 
-
 let addlen s =
   let len = String.length s in
   if len > 0xFFFF then raise (Invalid_argument "string too long");
   Bytes.to_string (int16be len) ^ s
 
-
-let opt_with s n = function
-  | Some a -> s a
-  | None -> n
-
-
+let opt_with s n = function Some a -> s a | None -> n
 let puback id = Puback id
-
 let pubrec id = Pubrec id
-
 let pubcomp id = Pubcomp id
 
 module Encoder = struct
@@ -207,7 +184,6 @@ module Encoder = struct
     in
     loop len 0l
 
-
   let fixed_header typ ~dup ~qos ~retain body_len =
     let msgid = bits_of_message typ lsl 4 in
     let dup = bit_of_bool dup lsl 3 in
@@ -219,7 +195,6 @@ module Encoder = struct
     BE.set_int32 len 0 (encode_length body_len);
     let len = trunc (Bytes.to_string len) in
     Bytes.to_string hdr ^ len
-
 
   let unsubscribe ~dup ~qos ~retain ~id topics =
     let accum acc i = acc + 2 + String.length i in
@@ -235,7 +210,6 @@ module Encoder = struct
     List.iter addtopic topics;
     Buffer.contents buf
 
-
   let unsuback id =
     let msgid = int16be id |> Bytes.to_string in
     let hdr =
@@ -243,13 +217,10 @@ module Encoder = struct
     in
     hdr ^ msgid
 
-
   let simple_pkt typ =
     fixed_header typ ~dup:false ~qos:Atmost_once ~retain:false 0
 
-
   let pingreq () = simple_pkt Pingreq_pkt
-
   let pingresp () = simple_pkt Pingresp_pkt
 
   let pubpkt ?(dup = false) ?(qos = Atmost_once) ?(retain = false) typ id =
@@ -260,11 +231,8 @@ module Encoder = struct
     Buffer.add_string buf msgid;
     Buffer.contents buf
 
-
   let pubrec = pubpkt Pubrec_pkt
-
   let pubrel ?dup ?qos ?retain = pubpkt ?dup ?qos ?retain Pubrel_pkt
-
   let pubcomp = pubpkt Pubcomp_pkt
 
   let suback ?(dup = false) ?(qos = Atmost_once) ?(retain = false) id qoses =
@@ -279,9 +247,7 @@ module Encoder = struct
     List.iter blit qoses;
     Buffer.contents buf
 
-
   let puback = pubpkt Puback_pkt
-
   let disconnect () = simple_pkt Disconnect_pkt
 
   let subscribe ~dup ~qos ~retain ~id topics =
@@ -302,7 +268,6 @@ module Encoder = struct
     List.iter addtopic topics;
     Buffer.contents buf
 
-
   let publish ~dup ~qos ~retain ~id ~topic payload =
     let id_data =
       if qos = Atleast_once || qos = Exactly_once then
@@ -319,7 +284,6 @@ module Encoder = struct
     Buffer.add_string buf id_data;
     Buffer.add_string buf payload;
     Buffer.contents buf
-
 
   let connect_payload ?credentials ?will ?(flags = []) ?(keep_alive = 10) id =
     let name = addlen "MQIsdp" in
@@ -359,7 +323,6 @@ module Encoder = struct
     List.iter (Buffer.add_string buf) fields;
     Buffer.contents buf
 
-
   let connect ?credentials ?will ?flags ?keep_alive ?(dup = false)
       ?(qos = Atmost_once) ?(retain = false) id =
     let cxn_pay = connect_payload ?credentials ?will ?flags ?keep_alive id in
@@ -368,7 +331,6 @@ module Encoder = struct
     in
     hdr ^ cxn_pay
 
-
   let connect_data d =
     let clientid = d.clientid in
     let credentials = d.credentials in
@@ -376,7 +338,6 @@ module Encoder = struct
     let flags = d.flags in
     let keep_alive = d.keep_alive in
     connect_payload ?credentials ?will ~flags ~keep_alive clientid
-
 
   let connack ?(dup = false) ?(qos = Atmost_once) ?(retain = false)
       ~session_present status =
@@ -426,7 +387,6 @@ module Decoder = struct
     let flags = if will_retain then Will_retain :: flags else flags in
     Connect { clientid; credentials; will; flags; keep_alive }
 
-
   let decode_connack rb =
     let flags = Read_buffer.read_uint8 rb in
     let session_present = bool_of_bit flags in
@@ -434,7 +394,6 @@ module Decoder = struct
       connection_status_of_int (Read_buffer.read_uint8 rb)
     in
     Connack { session_present; connection_status }
-
 
   let decode_publish (_, qos, _) rb =
     let topic = Read_buffer.read_string rb in
@@ -446,13 +405,9 @@ module Decoder = struct
     let payload = Read_buffer.len rb |> Read_buffer.read rb in
     Publish (msgid, topic, payload)
 
-
   let decode_puback rb = Puback (Read_buffer.read_uint16 rb)
-
   let decode_pubrec rb = Pubrec (Read_buffer.read_uint16 rb)
-
   let decode_pubrel rb = Pubrel (Read_buffer.read_uint16 rb)
-
   let decode_pubcomp rb = Pubcomp (Read_buffer.read_uint16 rb)
 
   let decode_subscribe rb =
@@ -465,26 +420,20 @@ module Decoder = struct
     let topics = Read_buffer.read_all rb get_topic in
     Subscribe (id, topics)
 
-
   let decode_suback rb =
     let id = Read_buffer.read_uint16 rb in
     let get_qos rb = Read_buffer.read_uint8 rb |> qos_of_bits in
     let qoses = Read_buffer.read_all rb get_qos in
     Suback (id, List.rev qoses)
 
-
   let decode_unsub rb =
     let id = Read_buffer.read_uint16 rb in
     let topics = Read_buffer.read_all rb Read_buffer.read_string in
     Unsubscribe (id, topics)
 
-
   let decode_unsuback rb = Unsuback (Read_buffer.read_uint16 rb)
-
   let decode_pingreq _rb = Pingreq
-
   let decode_pingresp _rb = Pingresp
-
   let decode_disconnect _rb = Disconnect
 
   let decode_packet opts = function
@@ -502,7 +451,6 @@ module Decoder = struct
     | Pingreq_pkt -> decode_pingreq
     | Pingresp_pkt -> decode_pingresp
     | Disconnect_pkt -> decode_disconnect
-
 
   let decode_fixed_header byte : messages * options =
     let typ = (byte land 0xF0) lsr 4 in

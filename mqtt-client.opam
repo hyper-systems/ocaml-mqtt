@@ -10,7 +10,7 @@ tags: ["telemetry" "mqtt" "network" "protocol"]
 depends: [
   "ocplib-endian" {>= "0.6"}
   "logs"
-  "fmt"
+  "fmt" {>= "0.8.7"}
   "lwt"
   "lwt_ppx"
   "tls"

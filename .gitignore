@@ -1,5 +1,4 @@
 *.byte
-.*
 _build
 _tmp
 _esy

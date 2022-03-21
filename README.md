@@ -1,6 +1,6 @@
 # OCaml MQTT Client
 
-[![OCaml-CI Build Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fci.ocamllabs.io%2Fbadge%2Focurrent%2Focaml-ci%2Fmaster&logo=ocaml)](https://ci.ocamllabs.io/github/hyper-systems/ocaml-mqtt)
+[![OCaml-CI Build Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fci.ocamllabs.io%2Fbadge%2Fhyper-systems%2Focaml-mqtt%2Fmaster&logo=ocaml)](https://ci.ocamllabs.io/github/hyper-systems/ocaml-mqtt)
 
 This library implements the client MQTT v3 protocol.
 

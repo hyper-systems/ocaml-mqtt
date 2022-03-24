@@ -24,7 +24,6 @@ val connect :
   ?will:string * string ->
   ?clean_session:bool ->
   ?keep_alive:int ->
-  ?ping_timeout:float ->
   ?on_message:(topic:string -> string -> unit Lwt.t) ->
   ?on_disconnect:(t -> unit Lwt.t) ->
   ?on_error:(t -> exn -> unit Lwt.t) ->
@@ -56,7 +55,9 @@ val connect :
 val disconnect : t -> unit Lwt.t
 (** Disconnects the client from the MQTT broker.
 
-    {[ let%lwt () = Mqtt_client.disconnect client ]} *)
+    {[
+      let%lwt () = Mqtt_client.disconnect client
+    ]} *)
 
 val publish :
   ?dup:bool ->

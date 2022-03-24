@@ -118,8 +118,6 @@ let read_packets client =
       loop ();
     ]
 
-exception Ping_timeout
-
 let disconnect client =
   let%lwt () =
     Log.info (fun log -> log "[%s] Disconnecting client..." client.id)
@@ -150,6 +148,19 @@ let open_tls_connection ~client_id ~ca_file host port =
           log "[%s] could not get address info for %S" client_id host)
     in
     Lwt.fail exn
+
+let run_pinger ~keep_alive client =
+  let%lwt () = Log.debug (fun log -> log "Starting ping timer...") in
+  let _, output = client.cxn in
+  (* 25% leeway *)
+  let keep_alive = 0.75 *. float_of_int keep_alive in
+  let rec loop () =
+    let%lwt () = Lwt_unix.sleep keep_alive in
+    let pingreq_packet = Mqtt_packet.Encoder.pingreq () in
+    let%lwt () = Lwt_io.write output pingreq_packet in
+    loop ()
+  in
+  loop ()
 
 exception Connection_error
 
@@ -201,15 +212,12 @@ let rec create_connection ?tls_ca ~port ~client_id hosts =
       create_connection ?tls_ca ~port ~client_id hosts)
 
 let connect ?(id = "ocaml-mqtt") ?tls_ca ?credentials ?will
-    ?(clean_session = true) ?(keep_alive = 30) ?(ping_timeout = 5.0)
+    ?(clean_session = true) ?(keep_alive = 30)
     ?(on_message = default_on_message) ?(on_disconnect = default_on_disconnect)
     ?(on_error = default_on_error) ?(port = 1883) hosts =
   let flags = if clean_session then [ Mqtt_packet.Clean_session ] else [] in
-  let opt =
-    {
-      Mqtt_packet.ping_timeout;
-      cxn_data = { clientid = id; credentials; will; flags; keep_alive };
-    }
+  let cxn_data =
+    { Mqtt_packet.clientid = id; credentials; will; flags; keep_alive }
   in
 
   let%lwt ((ic, oc) as connection) =
@@ -217,9 +225,9 @@ let connect ?(id = "ocaml-mqtt") ?tls_ca ?credentials ?will
   in
 
   let connect_packet =
-    Mqtt_packet.Encoder.connect ?credentials:opt.cxn_data.credentials
-      ?will:opt.cxn_data.will ~flags:opt.cxn_data.flags
-      ~keep_alive:opt.cxn_data.keep_alive opt.cxn_data.clientid
+    Mqtt_packet.Encoder.connect ?credentials:cxn_data.credentials
+      ?will:cxn_data.will ~flags:cxn_data.flags ~keep_alive:cxn_data.keep_alive
+      cxn_data.clientid
   in
   let%lwt () = Lwt_io.write oc connect_packet in
   let inflight = Hashtbl.create 16 in
@@ -250,7 +258,9 @@ let connect ?(id = "ocaml-mqtt") ?tls_ca ?credentials ?will
         let%lwt () =
           Log.debug (fun log -> log "[%s] Packet reader started." client.id)
         in
-        let%lwt () = client.reader in
+        let%lwt () =
+          Lwt.pick [ client.reader; run_pinger ~keep_alive client ]
+        in
         let%lwt () =
           Log.debug (fun log ->
               log "[%s] Packet reader stopped, shutting down..." client.id)

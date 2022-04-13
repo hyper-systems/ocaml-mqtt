@@ -147,8 +147,8 @@ let bool_of_bit = function
   | 1 -> true
   | 0 -> false
   | n ->
-      raise
-        (Invalid_argument ("expected zero or one, but got " ^ string_of_int n))
+    raise
+      (Invalid_argument ("expected zero or one, but got " ^ string_of_int n))
 
 let trunc str =
   (* truncate leading zeroes *)

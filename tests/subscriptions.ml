@@ -40,8 +40,8 @@ end = struct
     | E -> 0
     | Pound _ -> 1
     | NV (_, t) | V (_, t, _) ->
-        let children = tbl_vals t in
-        1 + List.fold_left (fun acc x -> acc + length x) 0 children
+      let children = tbl_vals t in
+      1 + List.fold_left (fun acc x -> acc + length x) 0 children
 
   let _get_vals = function E | NV _ -> [] | V (_, _, v) | Pound v -> v
 
@@ -61,19 +61,19 @@ end = struct
     let rec inner tree v p : 'a list =
       match p with
       | [] -> (
-          match tree with
-          | Pound z -> v @ z
-          | V (_, t, z) -> pound_lookahead t (v @ z)
-          | NV (_, t) -> pound_lookahead t v
-          | E -> v)
+        match tree with
+        | Pound z -> v @ z
+        | V (_, t, z) -> pound_lookahead t (v @ z)
+        | NV (_, t) -> pound_lookahead t v
+        | E -> v)
       | h :: m -> (
-          match tree with
-          | E -> v
-          | Pound z -> v @ z
-          | NV (_, t) | V (_, t, _) ->
-              let branches = find_branches t h in
-              let r = List.map (fun x -> inner x v m) branches in
-              v @ List.concat r)
+        match tree with
+        | E -> v
+        | Pound z -> v @ z
+        | NV (_, t) | V (_, t, _) ->
+          let branches = find_branches t h in
+          let r = List.map (fun x -> inner x v m) branches in
+          v @ List.concat r)
     in
     inner tree [] k_parts
 
@@ -87,23 +87,23 @@ end = struct
     let rec add k v i n = function
       | E -> new_node [| "*root*" |] v i n |> add k v i n
       | NV (key, h) as e ->
-          if n = 0 then V (key, h, [ v ])
-          else
-            let child =
-              try Hashtbl.find h k.(i) with Not_found -> new_node k v i n
-            in
-            let child = add k v (i + 1) (n - 1) child in
-            Hashtbl.replace h k.(i) child;
-            e
+        if n = 0 then V (key, h, [ v ])
+        else
+          let child =
+            try Hashtbl.find h k.(i) with Not_found -> new_node k v i n
+          in
+          let child = add k v (i + 1) (n - 1) child in
+          Hashtbl.replace h k.(i) child;
+          e
       | V (key, h, v1) as e ->
-          if n = 0 then V (key, h, v :: v1)
-          else
-            let child =
-              try Hashtbl.find h k.(i) with Not_found -> new_node k v i n
-            in
-            let child = add k v (i + 1) (n - 1) child in
-            Hashtbl.replace h k.(i) child;
-            e
+        if n = 0 then V (key, h, v :: v1)
+        else
+          let child =
+            try Hashtbl.find h k.(i) with Not_found -> new_node k v i n
+          in
+          let child = add k v (i + 1) (n - 1) child in
+          Hashtbl.replace h k.(i) child;
+          e
       | Pound v1 -> Pound (v :: v1)
     in
 
@@ -123,48 +123,48 @@ end = struct
   let find_branch k = function
     | E | Pound _ -> None
     | V (_, t, _) | NV (_, t) -> (
-        try Some (Hashtbl.find t k) with Not_found -> None)
+      try Some (Hashtbl.find t k) with Not_found -> None)
 
   let remove_branch k = function
     | (E as e) | (Pound _ as e) -> e
     | (NV (_, t) as e) | (V (_, t, _) as e) ->
-        Hashtbl.remove t k;
-        if 0 = Hashtbl.length t then E else e
+      Hashtbl.remove t k;
+      if 0 = Hashtbl.length t then E else e
 
   let replace_branch k g = function
     | (E as e) | (Pound _ as e) -> e
     | (NV (_, t) as e) | (V (_, t, _) as e) ->
-        Hashtbl.replace t k g;
-        e
+      Hashtbl.replace t k g;
+      e
 
   let remove_node key value tree =
     let parts = split key in
     let remove values v = List.filter (fun x -> x <> v) values in
     let rec inner tree = function
       | [ h ] -> (
-          match find_branch h tree with
-          | None -> tree
-          | Some b -> (
-              match b with
-              | E | NV _ -> tree
-              | Pound v ->
-                  if "#" = h then
-                    let v = remove v value in
-                    if 0 = List.length v then remove_branch h tree
-                    else replace_branch h (Pound v) tree
-                  else failwith "not pound; should never happen"
-              | V (k, t, v) ->
-                  let v = remove v value in
-                  if 0 = List.length v then
-                    if 0 = Hashtbl.length t then remove_branch k tree
-                    else replace_branch k (NV (k, t)) tree
-                  else replace_branch k (V (k, t, v)) tree))
+        match find_branch h tree with
+        | None -> tree
+        | Some b -> (
+          match b with
+          | E | NV _ -> tree
+          | Pound v ->
+            if "#" = h then
+              let v = remove v value in
+              if 0 = List.length v then remove_branch h tree
+              else replace_branch h (Pound v) tree
+            else failwith "not pound; should never happen"
+          | V (k, t, v) ->
+            let v = remove v value in
+            if 0 = List.length v then
+              if 0 = Hashtbl.length t then remove_branch k tree
+              else replace_branch k (NV (k, t)) tree
+            else replace_branch k (V (k, t, v)) tree))
       | h :: t -> (
-          match find_branch h tree with
-          | Some b ->
-              let e = inner b t in
-              if E = e then remove_branch h tree else replace_branch h e tree
-          | None -> tree)
+        match find_branch h tree with
+        | Some b ->
+          let e = inner b t in
+          if E = e then remove_branch h tree else replace_branch h e tree
+        | None -> tree)
       | [] -> tree
     in
     inner tree parts

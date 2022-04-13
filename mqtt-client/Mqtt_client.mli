@@ -55,9 +55,7 @@ val connect :
 val disconnect : t -> unit Lwt.t
 (** Disconnects the client from the MQTT broker.
 
-    {[
-      let%lwt () = Mqtt_client.disconnect client
-    ]} *)
+    {[ let%lwt () = Mqtt_client.disconnect client ]} *)
 
 val publish :
   ?dup:bool ->

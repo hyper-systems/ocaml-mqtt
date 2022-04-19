@@ -83,7 +83,7 @@ type t =
   | Connect of cxn_data
   | Connack of { session_present : bool; connection_status : connection_status }
   | Subscribe of (int * (string * qos) list)
-  | Suback of (int * qos list)
+  | Suback of (int * (qos, unit) result list)
   | Unsubscribe of (int * string list)
   | Unsuback of int
   | Publish of (int option * string * string)
@@ -141,6 +141,7 @@ let qos_of_bits = function
   | 2 -> Exactly_once
   | b -> raise (Invalid_argument ("invalid qos number: " ^ string_of_int b))
 
+let suback_qos_of_bits = function 128 -> Error () | b -> Ok (qos_of_bits b)
 let bit_of_bool = function true -> 1 | false -> 0
 
 let bool_of_bit = function
@@ -274,6 +275,7 @@ module Encoder = struct
         Bytes.to_string (int16be id)
       else ""
     in
+    let dup = if qos = Atmost_once then false else dup in
     let topic = addlen topic in
     let sl = String.length in
     let tl = sl topic + sl payload + sl id_data in
@@ -286,8 +288,8 @@ module Encoder = struct
     Buffer.contents buf
 
   let connect_payload ?credentials ?will ?(flags = []) ?(keep_alive = 10) id =
-    let name = addlen "MQIsdp" in
-    let version = "\003" in
+    let name = addlen "MQTT" in
+    let version = "\004" in
     if keep_alive > 0xFFFF then raise (Invalid_argument "keep_alive too large");
     let addhdr2 flag term (flags, hdr) =
       match term with
@@ -353,8 +355,8 @@ end
 module Decoder = struct
   let decode_connect rb =
     let lead = Read_buffer.read rb 9 in
-    if "\000\006MQIsdp\003" <> lead then
-      raise (Invalid_argument "invalid MQIsdp or version");
+    if "\000\004MQTT\004" <> lead then
+      raise (Invalid_argument "invalid MQTT or version");
     let hdr = Read_buffer.read_uint8 rb in
     let keep_alive = Read_buffer.read_uint16 rb in
     let has_username = 0 <> hdr land 0x80 in
@@ -422,7 +424,7 @@ module Decoder = struct
 
   let decode_suback rb =
     let id = Read_buffer.read_uint16 rb in
-    let get_qos rb = Read_buffer.read_uint8 rb |> qos_of_bits in
+    let get_qos rb = Read_buffer.read_uint8 rb |> suback_qos_of_bits in
     let qoses = Read_buffer.read_all rb get_qos in
     Suback (id, List.rev qoses)
 

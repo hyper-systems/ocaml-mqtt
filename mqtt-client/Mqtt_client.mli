@@ -12,6 +12,12 @@ type t
     {{!val:Mqtt_client.connect} connection options} for more information. *)
 type credentials = Credentials of string * string | Username of string
 
+(** Client error & exceptions
+
+    Defines the exceptions raised by the client *)
+
+exception Connection_error
+
 (** Quality of Service level.
 
     Defines the guarantee of delivery for messages. *)

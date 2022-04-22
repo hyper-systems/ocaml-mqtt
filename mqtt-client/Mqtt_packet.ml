@@ -141,7 +141,7 @@ let qos_of_bits = function
   | 2 -> Exactly_once
   | b -> raise (Invalid_argument ("invalid qos number: " ^ string_of_int b))
 
-let suback_qos_of_bits = function 128 -> Error () | b -> Ok (qos_of_bits b)
+let suback_qos_of_bits = function 0x80 -> Error () | b -> Ok (qos_of_bits b)
 let bit_of_bool = function true -> 1 | false -> 0
 
 let bool_of_bit = function

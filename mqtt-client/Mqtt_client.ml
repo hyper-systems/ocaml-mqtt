@@ -215,7 +215,9 @@ let connect ?(id = "ocaml-mqtt") ?tls_ca ?credentials ?will
     ?(clean_session = true) ?(keep_alive = 30)
     ?(on_message = default_on_message) ?(on_disconnect = default_on_disconnect)
     ?(on_error = default_on_error) ?(port = 1883) hosts =
-  let flags = if clean_session then [ Mqtt_packet.Clean_session ] else [] in
+  let flags =
+    if clean_session || id = "" then [ Mqtt_packet.Clean_session ] else []
+  in
   let cxn_data =
     { Mqtt_packet.clientid = id; credentials; will; flags; keep_alive }
   in

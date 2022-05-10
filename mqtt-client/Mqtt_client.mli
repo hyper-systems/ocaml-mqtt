@@ -61,7 +61,9 @@ val connect :
 val disconnect : t -> unit Lwt.t
 (** Disconnects the client from the MQTT broker.
 
-    {[ let%lwt () = Mqtt_client.disconnect client ]} *)
+    {[
+      let%lwt () = Mqtt_client.disconnect client
+    ]} *)
 
 val publish :
   ?dup:bool ->
@@ -78,13 +80,7 @@ val publish :
       let%lwt () = Mqtt_client.publish(~topic="news", payload, client);
     ]} *)
 
-val subscribe :
-  ?dup:bool ->
-  ?qos:qos ->
-  ?retain:bool ->
-  (string * qos) list ->
-  t ->
-  unit Lwt.t
+val subscribe : (string * qos) list -> t -> unit Lwt.t
 (** Subscribes the client to a list of topics.
 
     {[

@@ -185,19 +185,16 @@ module Encoder = struct
     in
     loop len 0l
 
-  let fixed_header typ ~dup ~qos ~retain body_len =
+  let fixed_header typ ?(flags = 0) body_len =
     let msgid = bits_of_message typ lsl 4 in
-    let dup = bit_of_bool dup lsl 3 in
-    let qos = bits_of_qos qos lsl 1 in
-    let retain = bit_of_bool retain in
     let hdr = Bytes.create 1 in
     let len = Bytes.create 4 in
-    BE.set_int8 hdr 0 (msgid + dup + qos + retain);
+    BE.set_int8 hdr 0 (msgid + flags);
     BE.set_int32 len 0 (encode_length body_len);
     let len = trunc (Bytes.to_string len) in
     Bytes.to_string hdr ^ len
 
-  let unsubscribe ~dup ~qos ~retain ~id topics =
+  let unsubscribe ~id topics =
     let accum acc i = acc + 2 + String.length i in
     let tl = List.fold_left accum 2 topics in
     (* +2 for msgid *)
@@ -205,7 +202,7 @@ module Encoder = struct
     (* ~5 for fixed header *)
     let addtopic t = addlen t |> Buffer.add_string buf in
     let msgid = int16be id |> Bytes.to_string in
-    let hdr = fixed_header Unsubscribe_pkt ~dup ~qos ~retain tl in
+    let hdr = fixed_header Unsubscribe_pkt ~flags:2 tl in
     Buffer.add_string buf hdr;
     Buffer.add_string buf msgid;
     List.iter addtopic topics;
@@ -213,19 +210,15 @@ module Encoder = struct
 
   let unsuback id =
     let msgid = int16be id |> Bytes.to_string in
-    let hdr =
-      fixed_header Unsuback_pkt ~dup:false ~qos:Atmost_once ~retain:false 2
-    in
+    let hdr = fixed_header Unsuback_pkt 2 in
     hdr ^ msgid
 
-  let simple_pkt typ =
-    fixed_header typ ~dup:false ~qos:Atmost_once ~retain:false 0
-
+  let simple_pkt typ = fixed_header typ 0
   let pingreq () = simple_pkt Pingreq_pkt
   let pingresp () = simple_pkt Pingresp_pkt
 
-  let pubpkt ?(dup = false) ?(qos = Atmost_once) ?(retain = false) typ id =
-    let hdr = fixed_header typ ~dup ~qos ~retain 2 in
+  let pubpkt ?flags typ id =
+    let hdr = fixed_header ?flags typ 2 in
     let msgid = int16be id |> Bytes.to_string in
     let buf = Buffer.create 4 in
     Buffer.add_string buf hdr;
@@ -233,16 +226,16 @@ module Encoder = struct
     Buffer.contents buf
 
   let pubrec = pubpkt Pubrec_pkt
-  let pubrel ?dup ?qos ?retain = pubpkt ?dup ?qos ?retain Pubrel_pkt
+  let pubrel = pubpkt ~flags:2 Pubrel_pkt
   let pubcomp = pubpkt Pubcomp_pkt
 
-  let suback ?(dup = false) ?(qos = Atmost_once) ?(retain = false) id qoses =
+  let suback id qoses =
     let paylen = List.length qoses + 2 in
     let buf = Buffer.create (paylen + 5) in
     let msgid = int16be id |> Bytes.to_string in
     let q2i q = bits_of_qos q |> int8be |> Bytes.to_string in
     let blit q = Buffer.add_string buf (q2i q) in
-    let hdr = fixed_header Suback_pkt ~dup ~qos ~retain paylen in
+    let hdr = fixed_header Suback_pkt paylen in
     Buffer.add_string buf hdr;
     Buffer.add_string buf msgid;
     List.iter blit qoses;
@@ -251,7 +244,7 @@ module Encoder = struct
   let puback = pubpkt Puback_pkt
   let disconnect () = simple_pkt Disconnect_pkt
 
-  let subscribe ~dup ~qos ~retain ~id topics =
+  let subscribe ~id topics =
     let accum acc (i, _) = acc + 3 + String.length i in
     let tl = List.fold_left accum 0 topics in
     let tl = tl + 2 in
@@ -263,7 +256,7 @@ module Encoder = struct
       Buffer.add_string buf (Bytes.to_string @@ int8be (bits_of_qos q))
     in
     let msgid = int16be id |> Bytes.to_string in
-    let hdr = fixed_header Subscribe_pkt ~dup ~qos ~retain tl in
+    let hdr = fixed_header Subscribe_pkt ~flags:2 tl in
     Buffer.add_string buf hdr;
     Buffer.add_string buf msgid;
     List.iter addtopic topics;
@@ -280,7 +273,13 @@ module Encoder = struct
     let sl = String.length in
     let tl = sl topic + sl payload + sl id_data in
     let buf = Buffer.create (tl + 5) in
-    let hdr = fixed_header Publish_pkt ~dup ~qos ~retain tl in
+    let flags =
+      let dup = bit_of_bool dup lsl 3 in
+      let qos = bits_of_qos qos lsl 1 in
+      let retain = bit_of_bool retain in
+      dup + qos + retain
+    in
+    let hdr = fixed_header Publish_pkt ~flags tl in
     Buffer.add_string buf hdr;
     Buffer.add_string buf topic;
     Buffer.add_string buf id_data;
@@ -325,12 +324,9 @@ module Encoder = struct
     List.iter (Buffer.add_string buf) fields;
     Buffer.contents buf
 
-  let connect ?credentials ?will ?flags ?keep_alive ?(dup = false)
-      ?(qos = Atmost_once) ?(retain = false) id =
+  let connect ?credentials ?will ?flags ?keep_alive id =
     let cxn_pay = connect_payload ?credentials ?will ?flags ?keep_alive id in
-    let hdr =
-      fixed_header Connect_pkt ~dup ~qos ~retain (String.length cxn_pay)
-    in
+    let hdr = fixed_header Connect_pkt (String.length cxn_pay) in
     hdr ^ cxn_pay
 
   let connect_data d =
@@ -341,9 +337,8 @@ module Encoder = struct
     let keep_alive = d.keep_alive in
     connect_payload ?credentials ?will ~flags ~keep_alive clientid
 
-  let connack ?(dup = false) ?(qos = Atmost_once) ?(retain = false)
-      ~session_present status =
-    let fixed_header = fixed_header Connack_pkt ~dup ~qos ~retain 2 in
+  let connack ~session_present status =
+    let fixed_header = fixed_header Connack_pkt 2 in
     let flags = Bytes.to_string (int8be (bit_of_bool session_present)) in
     let connection_status =
       Bytes.to_string (int8be (connection_status_to_int status))

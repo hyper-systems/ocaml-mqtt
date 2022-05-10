@@ -314,17 +314,14 @@ let publish ?(dup = false) ?(qos = Mqtt_core.Atleast_once) ?(retain = false)
     let%lwt () = Lwt_condition.wait cond in
     let expected_ack_pkt = Mqtt_packet.pubcomp id in
     Hashtbl.add client.inflight id (cond, expected_ack_pkt);
-    let pkt_data = Mqtt_packet.Encoder.pubrel ~dup ~qos ~retain id in
+    let pkt_data = Mqtt_packet.Encoder.pubrel id in
     let%lwt () = Lwt_io.write oc pkt_data in
     Lwt_condition.wait cond
 
-let subscribe ?(dup = false) ?(qos = Mqtt_core.Atleast_once) ?(retain = false)
-    topics client =
+let subscribe topics client =
   let _, oc = client.cxn in
   let pkt_id = Mqtt_packet.gen_id () in
-  let subscribe_packet =
-    Mqtt_packet.Encoder.subscribe ~dup ~qos ~retain ~id:pkt_id topics
-  in
+  let subscribe_packet = Mqtt_packet.Encoder.subscribe ~id:pkt_id topics in
   let qos_list = List.map (fun (_, q) -> Ok q) topics in
   let cond = Lwt_condition.create () in
   Hashtbl.add client.inflight pkt_id (cond, Suback (pkt_id, qos_list));

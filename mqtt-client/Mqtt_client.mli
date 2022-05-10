@@ -81,7 +81,7 @@ val publish :
     ]} *)
 
 val subscribe : (string * qos) list -> t -> unit Lwt.t
-(** Subscribes the client to a list of topics.
+(** Subscribes the client to a non-empty list of topics.
 
     {[
       let topics =

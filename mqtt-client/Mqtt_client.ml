@@ -321,6 +321,7 @@ let publish ?(dup = false) ?(qos = Mqtt_core.Atleast_once) ?(retain = false)
     Lwt_condition.wait cond
 
 let subscribe topics client =
+  if topics = [] then raise (Invalid_argument "empty topics");
   let _, oc = client.cxn in
   let pkt_id = Mqtt_packet.gen_id () in
   let subscribe_packet = Mqtt_packet.Encoder.subscribe ~id:pkt_id topics in

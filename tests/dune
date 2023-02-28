@@ -1,0 +1,6 @@
+(test
+ (name client_test)
+ (modules client_test)
+ (preprocess
+  (pps lwt_ppx))
+ (libraries mqtt-client lwt alcotest alcotest-lwt cohttp cohttp-lwt-unix))

@@ -14,6 +14,7 @@ depends: [
   "lwt"
   "lwt_ppx"
   "tls"
+  "tls-lwt"
   "dune" {>= "2.8.0"}
   # Test dependencies
   "alcotest" {with-test & >= "1.5.0"}

@@ -9,7 +9,7 @@ let sub_example () =
   let%lwt client = C.connect ~on_message ~id:"client-1" ~port [ host ] in
   C.subscribe [ ("topic-1", C.Atmost_once) ] client
 
-let pub_example () =
+let[@warning "-unused-value-declaration"] pub_example () =
   let%lwt () = Lwt_io.printl "Starting publisher..." in
   let%lwt client = C.connect ~id:"client-1" ~port [ host ] in
   let rec loop () =

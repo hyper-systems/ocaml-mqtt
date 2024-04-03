@@ -3,7 +3,7 @@
    "repositories": [
      {
        "url": "https://github.com/ocaml/opam-repository.git",
-       "rev": "1f3b2ee91cf82b7137fd5d96b907f1ea6964180a"
+       "rev": "c516155a4b0ab20ef48da6477bcd2546d2a2bed9"
      }
    ],
    "packages" : {
@@ -101,6 +101,7 @@
          "sha512": "69380ed392faf4495459f97f70a10a6959fce71d2e6ba093472fc272141646307fd7872407de855dfa48ef0435f6587eae5aa50f4a67eac40a9e1946d0c3c070"
        },
        "depends": [
+         "conf-bash",
          "dune",
          "dune-configurator",
          "ocaml",
@@ -217,10 +218,10 @@
        ]
      },
      "chrome-trace": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "dune",
@@ -374,6 +375,12 @@
          "dune"
        ]
      },
+     "conf-bash": {
+       "version": "1",
+       "depexts": [
+         "bash"
+       ]
+     },
      "conf-gmp": {
        "version": "4",
        "depexts": [
@@ -461,10 +468,10 @@
        ]
      },
      "dune": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "base-threads",
@@ -473,10 +480,10 @@
        ]
      },
      "dune-build-info": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "dune",
@@ -487,10 +494,10 @@
        ]
      },
      "dune-configurator": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "base-unix",
@@ -503,10 +510,10 @@
        ]
      },
      "dune-rpc": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "csexp",
@@ -536,10 +543,10 @@
        ]
      },
      "dyn": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "dune",
@@ -877,10 +884,10 @@
        ]
      },
      "mirage-crypto": {
-       "version": "0.11.2",
+       "version": "0.11.3",
        "src": {
-         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.2/mirage-crypto-0.11.2.tbz",
-         "sha256": "d6b97cb7f0dc344a602513cc03137c1e7f0ae105d0721614626cf4f231edf764"
+         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.3/mirage-crypto-0.11.3.tbz",
+         "sha256": "bfb530fa169cd905ebc7e2449f3407cfbd67023ac0b291b8b6f4a1437a5d95b1"
        },
        "depends": [
          "cstruct",
@@ -895,10 +902,10 @@
        ]
      },
      "mirage-crypto-ec": {
-       "version": "0.11.2",
+       "version": "0.11.3",
        "src": {
-         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.2/mirage-crypto-0.11.2.tbz",
-         "sha256": "d6b97cb7f0dc344a602513cc03137c1e7f0ae105d0721614626cf4f231edf764"
+         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.3/mirage-crypto-0.11.3.tbz",
+         "sha256": "bfb530fa169cd905ebc7e2449f3407cfbd67023ac0b291b8b6f4a1437a5d95b1"
        },
        "depends": [
          "cstruct",
@@ -915,10 +922,10 @@
        ]
      },
      "mirage-crypto-pk": {
-       "version": "0.11.2",
+       "version": "0.11.3",
        "src": {
-         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.2/mirage-crypto-0.11.2.tbz",
-         "sha256": "d6b97cb7f0dc344a602513cc03137c1e7f0ae105d0721614626cf4f231edf764"
+         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.3/mirage-crypto-0.11.3.tbz",
+         "sha256": "bfb530fa169cd905ebc7e2449f3407cfbd67023ac0b291b8b6f4a1437a5d95b1"
        },
        "depends": [
          "cstruct",
@@ -936,10 +943,10 @@
        ]
      },
      "mirage-crypto-rng": {
-       "version": "0.11.2",
+       "version": "0.11.3",
        "src": {
-         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.2/mirage-crypto-0.11.2.tbz",
-         "sha256": "d6b97cb7f0dc344a602513cc03137c1e7f0ae105d0721614626cf4f231edf764"
+         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.3/mirage-crypto-0.11.3.tbz",
+         "sha256": "bfb530fa169cd905ebc7e2449f3407cfbd67023ac0b291b8b6f4a1437a5d95b1"
        },
        "depends": [
          "cstruct",
@@ -956,10 +963,10 @@
        ]
      },
      "mirage-crypto-rng-lwt": {
-       "version": "0.11.2",
+       "version": "0.11.3",
        "src": {
-         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.2/mirage-crypto-0.11.2.tbz",
-         "sha256": "d6b97cb7f0dc344a602513cc03137c1e7f0ae105d0721614626cf4f231edf764"
+         "url": "https://github.com/mirage/mirage-crypto/releases/download/v0.11.3/mirage-crypto-0.11.3.tbz",
+         "sha256": "bfb530fa169cd905ebc7e2449f3407cfbd67023ac0b291b8b6f4a1437a5d95b1"
        },
        "depends": [
          "dune",
@@ -975,7 +982,7 @@
          "dune"
        ]
      },
-     "mqtt-client": {
+     "mqtt": {
        "version": "dev",
        "src": { "url": "file://." },
        "depends": [
@@ -1121,10 +1128,10 @@
        ]
      },
      "ocaml-version": {
-       "version": "3.6.4",
+       "version": "3.6.5",
        "src": {
-         "url": "https://github.com/ocurrent/ocaml-version/releases/download/v3.6.4/ocaml-version-3.6.4.tbz",
-         "sha256": "270bcebfe43881ebc09c897bde5ea3b90737b7673ee4100f8c0c6cff321872dc"
+         "url": "https://github.com/ocurrent/ocaml-version/releases/download/v3.6.5/ocaml-version-3.6.5.tbz",
+         "sha256": "8473f697425ccfd61a971098d30720747eb34f3f8ea910fa24eca307eaf9dfd2"
        },
        "depends": [
          "dune",
@@ -1145,10 +1152,10 @@
        ]
      },
      "ocamlc-loc": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "dune",
@@ -1308,10 +1315,10 @@
        ]
      },
      "ordering": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "dune",
@@ -1413,10 +1420,10 @@
        ]
      },
      "ppxlib": {
-       "version": "0.32.0",
+       "version": "0.32.1~5.2preview",
        "src": {
-         "url": "https://github.com/ocaml-ppx/ppxlib/releases/download/0.32.0/ppxlib-0.32.0.tbz",
-         "sha256": "507cc73ccf895f22eeb5257a2243838c18a38a09105fcff55eeef9148555422b"
+         "url": "https://github.com/ocaml-ppx/ppxlib/archive/04e050cbe2cf3e5cdb4441c480e4f472a5033941.tar.gz",
+         "sha256": "f0e61123b33b2acca23a388a367226674a7bccdedbaa41b0fd62fa42344dccd9"
        },
        "depends": [
          "dune",
@@ -1570,10 +1577,10 @@
        ]
      },
      "stdune": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "base-unix",
@@ -1603,10 +1610,10 @@
        ]
      },
      "tls": {
-       "version": "0.17.3",
+       "version": "0.17.4",
        "src": {
-         "url": "https://github.com/mirleft/ocaml-tls/releases/download/v0.17.3/tls-0.17.3.tbz",
-         "sha256": "47e5decdd30ed1c367736458a63ae077474147b3dd675c14590b81a92d5031d4"
+         "url": "https://github.com/mirleft/ocaml-tls/releases/download/v0.17.4/tls-0.17.4.tbz",
+         "sha256": "62a4290971dffae0e436493ec06c811560e242ba810ed2a86dd749763de1a43f"
        },
        "depends": [
          "cstruct",
@@ -1628,10 +1635,10 @@
        ]
      },
      "tls-lwt": {
-       "version": "0.17.3",
+       "version": "0.17.4",
        "src": {
-         "url": "https://github.com/mirleft/ocaml-tls/releases/download/v0.17.3/tls-0.17.3.tbz",
-         "sha256": "47e5decdd30ed1c367736458a63ae077474147b3dd675c14590b81a92d5031d4"
+         "url": "https://github.com/mirleft/ocaml-tls/releases/download/v0.17.4/tls-0.17.4.tbz",
+         "sha256": "62a4290971dffae0e436493ec06c811560e242ba810ed2a86dd749763de1a43f"
        },
        "depends": [
          "cmdliner",
@@ -1639,6 +1646,7 @@
          "lwt",
          "mirage-crypto-rng-lwt",
          "ocaml",
+         "ptime",
          "tls",
          "x509"
        ],
@@ -1789,10 +1797,10 @@
        ]
      },
      "xdg": {
-       "version": "3.14.0",
+       "version": "3.14.2",
        "src": {
-         "url": "https://github.com/ocaml/dune/releases/download/3.14.0/dune-3.14.0.tbz",
-         "sha256": "f4d09d89162621fdff424c253fa50c4920d2179fb5b3d1debab7bbe97c68b2fc"
+         "url": "https://github.com/ocaml/dune/releases/download/3.14.2/dune-3.14.2.tbz",
+         "sha256": "e80867cb362b2749d9d9e0cbab2982f98af1daf4459b81164ca0aac6b4e6ace1"
        },
        "depends": [
          "dune",

@@ -1,3 +1,4 @@
+.DS_Store
 *.byte
 _build
 _tmp

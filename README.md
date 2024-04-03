@@ -17,7 +17,7 @@ In your dune project add the following dependencies to your dune file:
 (executable
   (name My_app)
   (public_name my_app)
-  (libraries mqtt-client lwt)
+  (libraries mqtt.client lwt)
   (preprocess (pps lwt_ppx)))
 ```
 

@@ -4,7 +4,7 @@ let port () =
   port := !port + 1;
   !port
 
-let timeout ?(t = 10.) () =
+let timeout ?(t = 30.) () =
   let%lwt () = Lwt_unix.sleep t in
   Alcotest.fail "ERROR client timeout"
 

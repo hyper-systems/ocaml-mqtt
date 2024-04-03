@@ -17,7 +17,7 @@ let establish_server ~port ?(no_close = true) callback =
   in
   let%lwt _server =
     Lwt_io.establish_server_with_client_address ~no_close
-      (ADDR_INET (Unix.inet_addr_of_string "0.0.0.0", port))
+      (ADDR_INET (Unix.inet_addr_of_string "127.0.0.1", port))
       callback
   in
   Lwt_condition.wait cond
@@ -247,7 +247,7 @@ let test_connect_success _switch () =
     establish_server ~port callback
   in
   let client () =
-    let%lwt _client = Mqtt_client.connect ~id ~port [ "0.0.0.0" ] in
+    let%lwt _client = Mqtt_client.connect ~id ~port [ "127.0.0.1" ] in
     Lwt.return_unit
   in
   Lwt.pick [ Lwt.join [ server (); client () ]; timeout () ]
@@ -269,7 +269,7 @@ let test_connect_protocol_error _switch () =
     Lwt.catch
       (fun () ->
         (* attempt to connect *)
-        let%lwt _client = Mqtt_client.connect ~id ~port [ "0.0.0.0" ] in
+        let%lwt _client = Mqtt_client.connect ~id ~port [ "127.0.0.1" ] in
         (* fail upon succesfull connect*)
         Alcotest.fail "CONNECT success")
       (fun exn ->
@@ -296,7 +296,7 @@ let test_connect_client_id_clean_session _switch () =
   in
   let client () =
     let%lwt _client =
-      Mqtt_client.connect ~id ~port ~clean_session:false [ "0.0.0.0" ]
+      Mqtt_client.connect ~id ~port ~clean_session:false [ "127.0.0.1" ]
     in
     Lwt.return_unit
   in
@@ -390,7 +390,7 @@ let test_publish_qos_0 _switch () =
     establish_server callback
   in
   let client () =
-    let%lwt client = Mqtt_client.connect ~id ~port [ "0.0.0.0" ] in
+    let%lwt client = Mqtt_client.connect ~id ~port [ "127.0.0.1" ] in
     let%lwt () = Mqtt_client.publish ~qos:Atmost_once ~topic content client in
     (* force the dup flag to true to verify that it is set to 0 correctly *)
     let%lwt () =
@@ -419,7 +419,7 @@ let test_publish_qos_1 _switch () =
     establish_server callback
   in
   let client () =
-    let%lwt client = Mqtt_client.connect ~id ~port [ "0.0.0.0" ] in
+    let%lwt client = Mqtt_client.connect ~id ~port [ "127.0.0.1" ] in
     let%lwt () = Mqtt_client.publish ~qos:Atleast_once ~topic content client in
     Lwt.return_unit
   in
@@ -452,7 +452,7 @@ let test_publish_qos_1_packet_id _switch () =
     establish_server callback
   in
   let client () =
-    let%lwt client = Mqtt_client.connect ~id ~port [ "0.0.0.0" ] in
+    let%lwt client = Mqtt_client.connect ~id ~port [ "127.0.0.1" ] in
     (* send first packet*)
     let p1 = Mqtt_client.publish ~qos:Atleast_once ~topic content client in
     (* wait that it is received *)
@@ -487,7 +487,7 @@ let test_publish_qos_2 _switch () =
     establish_server callback
   in
   let client () =
-    let%lwt client = Mqtt_client.connect ~id ~port [ "0.0.0.0" ] in
+    let%lwt client = Mqtt_client.connect ~id ~port [ "127.0.0.1" ] in
     let%lwt () = Mqtt_client.publish ~qos:Exactly_once ~topic content client in
     Lwt.return_unit
   in
@@ -539,7 +539,7 @@ let test_subscribe_sub _switch () =
     establish_server callback
   in
   let client () =
-    let%lwt client = Mqtt_client.connect ~id ~port [ "0.0.0.0" ] in
+    let%lwt client = Mqtt_client.connect ~id ~port [ "127.0.0.1" ] in
     let%lwt () = Mqtt_client.subscribe [ (topic, qos) ] client in
     Lwt.return_unit
   in
@@ -562,7 +562,7 @@ let test_subscribe_empty_sub _switch () =
     Lwt.catch
       (fun () ->
         (* attempt to connect *)
-        let%lwt client = Mqtt_client.connect ~id ~port [ "0.0.0.0" ] in
+        let%lwt client = Mqtt_client.connect ~id ~port [ "127.0.0.1" ] in
         let%lwt () = Mqtt_client.subscribe [] client in
         (* fail upon succesfull subscribe*)
         Alcotest.fail "CONNECT success")
@@ -602,7 +602,9 @@ let test_subscribe_msg _switch () =
       Lwt_condition.signal cond ();
       Lwt.return_unit
     in
-    let%lwt _client = Mqtt_client.connect ~id ~port ~on_message [ "0.0.0.0" ] in
+    let%lwt _client =
+      Mqtt_client.connect ~id ~port ~on_message [ "127.0.0.1" ]
+    in
     Lwt_condition.signal cond ();
     Lwt_condition.wait cond
   in

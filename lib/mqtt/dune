@@ -1,0 +1,3 @@
+(library
+  (public_name mqtt)
+  (libraries mqtt_client))

@@ -3,4 +3,4 @@
  (modules client_test)
  (preprocess
   (pps lwt_ppx))
- (libraries mqtt-client lwt alcotest alcotest-lwt cohttp cohttp-lwt-unix))
+ (libraries mqtt.client lwt alcotest alcotest-lwt cohttp cohttp-lwt-unix))

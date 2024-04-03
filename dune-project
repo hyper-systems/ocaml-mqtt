@@ -1,11 +1,11 @@
 (lang dune 3.13)
 
-(name mqtt-client)
+(name mqtt)
 
 (generate_opam_files true)
 
 (source
- (github hyper-systems/ocaml-mqtt-client))
+ (github hyper-systems/ocaml-mqtt))
 
 (authors "Rizo I. <rizo@odis.io>" "Josh Allmann <joshua.allmann@gmail.com>")
 
@@ -13,10 +13,10 @@
 
 (license BSD-3-clause)
 
-(documentation https://hyper-systems.github.io/ocaml-mqtt-client/mqtt-client)
+(documentation https://hyper-systems.github.io/ocaml-mqtt)
 
 (package
- (name mqtt-client)
+ (name mqtt)
  (synopsis "OCaml MQTT client")
  (depends
   (ocaml

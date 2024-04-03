@@ -4,9 +4,9 @@ synopsis: "OCaml MQTT client"
 maintainer: ["Rizo I. <rizo@odis.io>" "Leo Soares <leojrfs@gmail.com>"]
 authors: ["Rizo I. <rizo@odis.io>" "Josh Allmann <joshua.allmann@gmail.com>"]
 license: "BSD-3-clause"
-homepage: "https://github.com/hyper-systems/ocaml-mqtt-client"
-doc: "https://hyper-systems.github.io/ocaml-mqtt-client/mqtt-client"
-bug-reports: "https://github.com/hyper-systems/ocaml-mqtt-client/issues"
+homepage: "https://github.com/hyper-systems/ocaml-mqtt"
+doc: "https://hyper-systems.github.io/ocaml-mqtt"
+bug-reports: "https://github.com/hyper-systems/ocaml-mqtt/issues"
 depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "3.13"}
@@ -39,4 +39,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/hyper-systems/ocaml-mqtt-client.git"
+dev-repo: "git+https://github.com/hyper-systems/ocaml-mqtt.git"

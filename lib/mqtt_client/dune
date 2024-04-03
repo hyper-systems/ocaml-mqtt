@@ -1,6 +1,6 @@
 (library
- (name Mqtt_client)
- (public_name mqtt-client)
+ (name mqtt_client)
+ (public_name mqtt.client)
  (preprocess
   (pps lwt_ppx))
  (libraries fmt lwt lwt.unix logs logs.lwt tls tls-lwt ocplib-endian))

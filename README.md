@@ -4,7 +4,7 @@
 
 This library implements the client MQTT v3 protocol.
 
-* [API Documentation](https://hyper-systems.github.io/ocaml-mqtt/mqtt-client/Mqtt_client)
+* [API Documentation](https://hyper.systems/ocaml-mqtt/mqtt/index.html)
 * [Issues](https://github.com/hyper-systems/ocaml-mqtt/issues)
 
 > Originally forked from https://github.com/j0sh/ocaml-mqtt.

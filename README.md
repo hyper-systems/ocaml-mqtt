@@ -11,8 +11,12 @@ This library implements the client MQTT v3 protocol.
 
 ## Quickstart
 
-In your dune project add the following dependencies to your dune file:
+Install the packaage:
+```
+$ opam install mqtt
+```
 
+In your dune project add the following dependencies to your dune file:
 ```lisp
 (executable
   (name My_app)
@@ -24,8 +28,7 @@ In your dune project add the following dependencies to your dune file:
 ## Examples
 
 Here is a basic example of a subscriber:
-
-```reason
+```ocaml
 module C = Mqtt_client
 
 let host = "127.0.0.1"
